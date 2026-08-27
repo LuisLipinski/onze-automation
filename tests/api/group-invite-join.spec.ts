@@ -10,6 +10,13 @@ type GroupBody = {
   role: 'ADMIN' | 'MEMBER';
 };
 
+type InviteBody = {
+  groupId: string;
+  code: string;
+  deepLink: string;
+  shareUrl: string;
+};
+
 async function registerUser(request: any, label: string): Promise<AuthBody> {
   const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const response = await request.post('/api/auth/register', {
@@ -27,7 +34,7 @@ function auth(token: string) {
   return { Authorization: `Bearer ${token}` };
 }
 
-test('deve reutilizar o mesmo convite para várias pessoas e permitir regeneração pelo admin', async ({
+test('deve compartilhar convite HTTPS reutilizável e permitir regeneração pelo admin', async ({
   request,
 }) => {
   const creator = await registerUser(request, 'invite-admin');
@@ -46,7 +53,19 @@ test('deve reutilizar o mesmo convite para várias pessoas e permitir regeneraç
     headers: auth(creator.accessToken),
   });
   expect(inviteResponse.status()).toBe(200);
-  const invite = await inviteResponse.json();
+  const invite = (await inviteResponse.json()) as InviteBody;
+  expect(invite.deepLink).toBe(`onze://join/${invite.code}`);
+  expect(invite.shareUrl).toBe(
+    `https://onze-organizador-de-pelada.onrender.com/join/${invite.code}`,
+  );
+
+  const landingResponse = await request.get(invite.shareUrl);
+  expect(landingResponse.status()).toBe(200);
+  expect(landingResponse.headers()['content-type']).toContain('text/html');
+  const landingHtml = await landingResponse.text();
+  expect(landingHtml).toContain('Abrir no Onze');
+  expect(landingHtml).toContain(invite.code);
+  expect(landingHtml).toContain(`onze://join/${invite.code}`);
 
   for (const member of [firstMember, secondMember]) {
     const joinResponse = await request.post('/api/groups/join', {
@@ -86,10 +105,20 @@ test('deve reutilizar o mesmo convite para várias pessoas e permitir regeneraç
     headers: auth(creator.accessToken),
   });
   expect(regenerateResponse.status()).toBe(200);
-  const regenerated = await regenerateResponse.json();
+  const regenerated = (await regenerateResponse.json()) as InviteBody;
   expect(regenerated.code).toMatch(/^[A-Z2-9]{8}$/);
   expect(regenerated.code).not.toBe(invite.code);
   expect(regenerated.deepLink).toBe(`onze://join/${regenerated.code}`);
+  expect(regenerated.shareUrl).toBe(
+    `https://onze-organizador-de-pelada.onrender.com/join/${regenerated.code}`,
+  );
+
+  const oldLandingResponse = await request.get(invite.shareUrl);
+  expect(oldLandingResponse.status()).toBe(404);
+
+  const newLandingResponse = await request.get(regenerated.shareUrl);
+  expect(newLandingResponse.status()).toBe(200);
+  expect(await newLandingResponse.text()).toContain(`onze://join/${regenerated.code}`);
 
   const oldCodeResponse = await request.post('/api/groups/join', {
     headers: auth(afterRegeneration.accessToken),
