@@ -47,4 +47,30 @@ test.describe('API authentication', () => {
     expect(meBody.email).toBe(email);
     expect(meBody.displayName).toBe(displayName);
   });
+
+  test('deve responder de forma genérica ao solicitar recuperação de senha', async ({ request }) => {
+    const response = await request.post('/api/auth/password-reset/request', {
+      data: { email: `missing-${Date.now()}@onze.test` },
+    });
+
+    expect(response.status()).toBe(202);
+    await expect(response.json()).resolves.toMatchObject({
+      message: 'Se existir uma conta com este e-mail, enviaremos um código de recuperação.',
+    });
+  });
+
+  test('deve rejeitar código de recuperação inválido sem revelar a conta', async ({ request }) => {
+    const response = await request.post('/api/auth/password-reset/confirm', {
+      data: {
+        email: `missing-${Date.now()}@onze.test`,
+        code: '000000',
+        newPassword: 'NovaSenha123!',
+      },
+    });
+
+    expect(response.status()).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      code: 'INVALID_OR_EXPIRED_RESET_CODE',
+    });
+  });
 });
