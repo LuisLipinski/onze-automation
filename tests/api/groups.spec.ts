@@ -14,7 +14,7 @@ type GroupBody = {
   mascot: string | null;
   venue: string | null;
   schedules: Array<{ dayOfWeek: string; startTime: string }>;
-  role: 'ADMIN' | 'MEMBER';
+  role: 'PRIMARY_ADMIN' | 'ADMIN' | 'MEMBER';
 };
 
 async function registerUser(request: any, label: string): Promise<AuthBody> {
@@ -41,7 +41,7 @@ const tinyPng = Buffer.from(
 );
 
 test.describe('P1 - grupos', () => {
-  test('deve criar grupo, enviar foto, tornar o criador admin, completar dados e gerar convite', async ({
+  test('deve criar grupo, enviar foto, tornar o criador administrador principal, completar dados e gerar convite', async ({
     request,
   }) => {
     const creator = await registerUser(request, 'grupo');
@@ -58,7 +58,7 @@ test.describe('P1 - grupos', () => {
     const group = (await createResponse.json()) as GroupBody;
     expect(group.name).toBe('Pelada QA');
     expect(group.description).toBe('Grupo criado pela automação da P1');
-    expect(group.role).toBe('ADMIN');
+    expect(group.role).toBe('PRIMARY_ADMIN');
     expect(group.photoUrl).toBeNull();
 
     const photoResponse = await request.post(`/api/groups/${group.id}/photo`, {
@@ -107,7 +107,7 @@ test.describe('P1 - grupos', () => {
     expect(
       groups.some(
         (item) =>
-          item.id === group.id && item.role === 'ADMIN' && item.photoUrl === withPhoto.photoUrl,
+          item.id === group.id && item.role === 'PRIMARY_ADMIN' && item.photoUrl === withPhoto.photoUrl,
       ),
     ).toBeTruthy();
 
