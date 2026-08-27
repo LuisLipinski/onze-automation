@@ -35,8 +35,13 @@ function auth(token: string) {
   return { Authorization: `Bearer ${token}` };
 }
 
+const tinyPng = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+  'base64',
+);
+
 test.describe('P1 - grupos', () => {
-  test('deve criar grupo, tornar o criador admin, completar dados e gerar convite', async ({
+  test('deve criar grupo, enviar foto, tornar o criador admin, completar dados e gerar convite', async ({
     request,
   }) => {
     const creator = await registerUser(request, 'grupo');
@@ -56,6 +61,20 @@ test.describe('P1 - grupos', () => {
     expect(group.role).toBe('ADMIN');
     expect(group.photoUrl).toBeNull();
 
+    const photoResponse = await request.post(`/api/groups/${group.id}/photo`, {
+      headers: auth(creator.accessToken),
+      multipart: {
+        photo: {
+          name: 'group-photo.png',
+          mimeType: 'image/png',
+          buffer: tinyPng,
+        },
+      },
+    });
+    expect(photoResponse.status()).toBe(200);
+    const withPhoto = (await photoResponse.json()) as GroupBody;
+    expect(withPhoto.photoUrl).toMatch(/^https:\/\/res\.cloudinary\.com\//);
+
     const detailsResponse = await request.put(`/api/groups/${group.id}/details`, {
       headers: auth(creator.accessToken),
       data: {
@@ -74,6 +93,7 @@ test.describe('P1 - grupos', () => {
     expect(configured.city).toBe('Curitiba');
     expect(configured.mascot).toBe('Leão');
     expect(configured.venue).toBe('Arena QA');
+    expect(configured.photoUrl).toBe(withPhoto.photoUrl);
     expect(configured.schedules).toEqual([
       { dayOfWeek: 'MONDAY', startTime: '19:30:00' },
       { dayOfWeek: 'THURSDAY', startTime: '20:00:00' },
@@ -84,7 +104,12 @@ test.describe('P1 - grupos', () => {
     });
     expect(listResponse.status()).toBe(200);
     const groups = (await listResponse.json()) as GroupBody[];
-    expect(groups.some((item) => item.id === group.id && item.role === 'ADMIN')).toBeTruthy();
+    expect(
+      groups.some(
+        (item) =>
+          item.id === group.id && item.role === 'ADMIN' && item.photoUrl === withPhoto.photoUrl,
+      ),
+    ).toBeTruthy();
 
     const inviteResponse = await request.post(`/api/groups/${group.id}/invite`, {
       headers: auth(creator.accessToken),
