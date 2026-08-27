@@ -34,6 +34,10 @@ function auth(token: string) {
   return { Authorization: `Bearer ${token}` };
 }
 
+function browserHeaders() {
+  return { Accept: 'text/html' };
+}
+
 test('deve compartilhar convite HTTPS reutilizável e permitir regeneração pelo admin', async ({
   request,
 }) => {
@@ -59,7 +63,7 @@ test('deve compartilhar convite HTTPS reutilizável e permitir regeneração pel
     `https://onze-organizador-de-pelada.onrender.com/join/${invite.code}`,
   );
 
-  const landingResponse = await request.get(invite.shareUrl);
+  const landingResponse = await request.get(invite.shareUrl, { headers: browserHeaders() });
   expect(landingResponse.status()).toBe(200);
   expect(landingResponse.headers()['content-type']).toContain('text/html');
   const landingHtml = await landingResponse.text();
@@ -113,10 +117,10 @@ test('deve compartilhar convite HTTPS reutilizável e permitir regeneração pel
     `https://onze-organizador-de-pelada.onrender.com/join/${regenerated.code}`,
   );
 
-  const oldLandingResponse = await request.get(invite.shareUrl);
+  const oldLandingResponse = await request.get(invite.shareUrl, { headers: browserHeaders() });
   expect(oldLandingResponse.status()).toBe(404);
 
-  const newLandingResponse = await request.get(regenerated.shareUrl);
+  const newLandingResponse = await request.get(regenerated.shareUrl, { headers: browserHeaders() });
   expect(newLandingResponse.status()).toBe(200);
   expect(await newLandingResponse.text()).toContain(`onze://join/${regenerated.code}`);
 
