@@ -1,10 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-const apiBaseUrl = process.env.API_BASE_URL;
-
 test.describe('API authentication', () => {
-  test.skip(!apiBaseUrl, 'API_BASE_URL ainda não configurada para o ambiente de CI.');
-
   test('deve cadastrar, autenticar e consultar o usuário logado', async ({ request }) => {
     const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
     const email = `qa-${unique}@onze.test`;
