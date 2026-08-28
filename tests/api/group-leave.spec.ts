@@ -14,9 +14,10 @@ type InviteBody = {
 
 async function registerUser(request: any, label: string): Promise<AuthBody> {
   const unique = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  const emailLabel = label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
   const response = await request.post('/api/auth/register', {
     data: {
-      email: `${label}-${unique}@onze.test`,
+      email: `${emailLabel}-${unique}@onze.test`,
       password: 'OnzeTest123!',
       displayName: label,
     },
