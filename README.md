@@ -9,7 +9,7 @@ Automação externa do **Onze — Organizador de Pelada** com Playwright e TypeS
 | Branch | Estado |
 |---|---|
 | `development` | Suíte atual de API e workflow de integração, com cobertura representativa de P1, P2, P6 e P7. |
-| `master` | Baseline inicial com somente README; não contém a suíte funcional. |
+| `master` | Branch de release estável; recebe somente versões validadas em `development` e autorizadas explicitamente. |
 
 ## Cobertura atual
 
