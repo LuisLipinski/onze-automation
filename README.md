@@ -8,13 +8,12 @@ Automação externa do **Onze — Organizador de Pelada** com Playwright e TypeS
 
 | Branch | Estado |
 |---|---|
-| `development` | Suíte atual de API e workflow de integração. |
-| `docs/documentation-alignment-2026-09-04` | Atualização documental baseada em `development`. |
+| `development` | Suíte atual de API e workflow de integração, com cobertura representativa de P1, P2, P6 e P7. |
 | `master` | Baseline inicial com somente README; não contém a suíte funcional. |
 
 ## Cobertura atual
 
-A suíte possui dez testes Playwright distribuídos entre:
+A suíte possui treze testes Playwright distribuídos entre:
 
 - health/readiness;
 - cadastro, login e consulta do usuário autenticado;
@@ -23,17 +22,20 @@ A suíte possui dez testes Playwright distribuídos entre:
 - autenticação, validações e isolamento de acesso;
 - hierarquia do Administrador Principal, incluindo `PROMOTE_MEMBERS` para promoção delegada e permanência do antigo Principal como `ADMIN` sem permissões;
 - convite HTTPS reutilizável, entrada idempotente e regeneração;
-- saída de membro e obrigação de transferência pelo Principal.
+- saída de membro e obrigação de transferência pelo Principal;
+- partida avulsa, autorização de gestão, confirmação de presença, limite e liberação de vagas, listagem e cancelamento;
+- pagamento informado e confirmado, privacidade financeira, saída paga, reposição obrigatória e reembolso;
+- cadastro, validação e remoção de token Expo do dispositivo.
 
 ## Ainda não coberto nesta suíte
 
-- partidas avulsas e semanais;
-- presença, limite de vagas e prazos;
-- pagamentos, créditos, acertos e reposições;
-- notificações Expo/FCM;
+- séries semanais;
+- ciclo temporal dos prazos de inscrição e pagamento;
+- créditos, acertos em lote e demais variações de acertos;
+- entrega real de notificações pelos provedores Expo/FCM;
 - fluxos de interface em aparelho ou emulador Android.
 
-Esses domínios possuem testes no backend, mas continuam pendentes na automação externa.
+Esses recortes possuem testes no backend, mas continuam pendentes na automação externa.
 
 ## Execução
 
@@ -51,7 +53,7 @@ Por padrão os testes usam `https://onze-organizador-de-pelada.onrender.com`. Pa
 API_BASE_URL=http://localhost:8080 npm test
 ```
 
-O timeout por teste é de 90 segundos para tolerar o despertar do Render gratuito.
+Antes da execução paralela, o setup global aguarda o endpoint de readiness por até quatro minutos para despertar o Render. O timeout de cada teste é de 90 segundos.
 
 ## CI
 
