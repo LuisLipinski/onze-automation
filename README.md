@@ -2,7 +2,7 @@
 
 Automação externa do **Onze — Organizador de Pelada** com Playwright e TypeScript.
 
-> Estado revisado em 04/09/2026. A cobertura atual é de API; ainda não há automação de interface Android.
+> Estado revisado em 08/09/2026. A cobertura atual é de API; ainda não há automação de interface Android.
 
 ## Estado por branch
 
@@ -21,7 +21,7 @@ A suíte possui dez testes Playwright distribuídos entre:
 - solicitação e validação negativa de recuperação de senha;
 - criação e configuração de grupos;
 - autenticação, validações e isolamento de acesso;
-- hierarquia do Administrador Principal;
+- hierarquia do Administrador Principal, incluindo `PROMOTE_MEMBERS` para promoção delegada e permanência do antigo Principal como `ADMIN` sem permissões;
 - convite HTTPS reutilizável, entrada idempotente e regeneração;
 - saída de membro e obrigação de transferência pelo Principal.
 
