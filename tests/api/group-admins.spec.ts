@@ -17,6 +17,7 @@ type MemberBody = {
   membershipId: string;
   displayName: string;
   role: 'PRIMARY_ADMIN' | 'ADMIN' | 'MEMBER';
+  permissions: string[];
   currentUser: boolean;
 };
 
@@ -88,12 +89,33 @@ test('deve respeitar a hierarquia do administrador principal', async ({ request 
   expect(promoteFirst.status()).toBe(200);
   await expect(promoteFirst.json()).resolves.toMatchObject({ role: 'ADMIN' });
 
-  const promoteSecondByCommonAdmin = await request.put(
+  const promoteSecondWithoutPermission = await request.put(
     `/api/groups/${group.id}/members/${secondMembership!.membershipId}/promote`,
     { headers: auth(first.accessToken) },
   );
-  expect(promoteSecondByCommonAdmin.status()).toBe(200);
-  await expect(promoteSecondByCommonAdmin.json()).resolves.toMatchObject({ role: 'ADMIN' });
+  expect(promoteSecondWithoutPermission.status()).toBe(403);
+  await expect(promoteSecondWithoutPermission.json()).resolves.toMatchObject({
+    code: 'GROUP_ACCESS_DENIED',
+  });
+
+  const grantPromotePermission = await request.put(
+    `/api/groups/${group.id}/members/${firstMembership!.membershipId}/permissions`,
+    {
+      headers: auth(primary.accessToken),
+      data: { permissions: ['PROMOTE_MEMBERS'] },
+    },
+  );
+  expect(grantPromotePermission.status()).toBe(200);
+  await expect(grantPromotePermission.json()).resolves.toMatchObject({
+    permissions: ['PROMOTE_MEMBERS'],
+  });
+
+  const promoteSecondByDelegatedAdmin = await request.put(
+    `/api/groups/${group.id}/members/${secondMembership!.membershipId}/promote`,
+    { headers: auth(first.accessToken) },
+  );
+  expect(promoteSecondByDelegatedAdmin.status()).toBe(200);
+  await expect(promoteSecondByDelegatedAdmin.json()).resolves.toMatchObject({ role: 'ADMIN' });
 
   const commonAdminDemoteAttempt = await request.put(
     `/api/groups/${group.id}/members/${secondMembership!.membershipId}/demote`,
@@ -136,7 +158,8 @@ test('deve respeitar a hierarquia do administrador principal', async ({ request 
   expect(transferResponse.status()).toBe(200);
   members = (await transferResponse.json()) as MemberBody[];
 
-  expect(members.find((member) => member.displayName === 'Principal QA')?.role).toBe('MEMBER');
+  expect(members.find((member) => member.displayName === 'Principal QA')?.role).toBe('ADMIN');
+  expect(members.find((member) => member.displayName === 'Principal QA')?.permissions).toEqual([]);
   expect(members.find((member) => member.displayName === 'Admin Um QA')?.role).toBe('PRIMARY_ADMIN');
 
   const oldPrimaryPromoteAttempt = await request.put(
