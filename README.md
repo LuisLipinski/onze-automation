@@ -2,7 +2,7 @@
 
 Automação externa do **Onze — Organizador de Pelada** com Playwright e TypeScript.
 
-> Estado revisado em 08/09/2026. A cobertura atual é de API; ainda não há automação de interface Android.
+> Estado revisado em 14/09/2026. A cobertura atual é de API; ainda não há automação de interface Android.
 
 ## Estado por branch
 
@@ -13,7 +13,7 @@ Automação externa do **Onze — Organizador de Pelada** com Playwright e TypeS
 
 ## Cobertura atual
 
-A suíte possui treze testes Playwright distribuídos entre:
+A suíte possui quinze testes Playwright distribuídos entre:
 
 - health/readiness;
 - cadastro, login e consulta do usuário autenticado;
@@ -23,6 +23,8 @@ A suíte possui treze testes Playwright distribuídos entre:
 - hierarquia do Administrador Principal, incluindo `PROMOTE_MEMBERS` para promoção delegada e permanência do antigo Principal como `ADMIN` sem permissões;
 - convite HTTPS reutilizável, entrada idempotente e regeneração;
 - saída de membro e obrigação de transferência pelo Principal;
+- perfil esportivo por grupo, múltiplas posições, goleiro, pé dominante e validações;
+- nível técnico administrativo, permissão delegada `EDIT_PLAYER_PROFILES`, resumo de membros e isolamento entre grupos;
 - partida avulsa, autorização de gestão, confirmação de presença, limite e liberação de vagas, listagem e cancelamento;
 - pagamento informado e confirmado, privacidade financeira, saída paga, reposição obrigatória e reembolso;
 - cadastro, validação e remoção de token Expo do dispositivo.
