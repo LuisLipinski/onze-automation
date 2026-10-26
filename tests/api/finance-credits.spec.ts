@@ -1,5 +1,5 @@
 import { test, expect } from '../support/test';
-import { preparedMatch, createMatch, auth, body, going, getMatch, promote } from '../support/factory';
+import { preparedMatch, createMatch, auth, body, going, getMatch, promote, profile, dateTime } from '../support/factory';
 
 test('payment requires player report, supports rejection/re-report and confirms idempotently', async ({ request, control }) => {
   const g = await preparedMatch(request, control, { paymentRequired: true, goalkeeperPays: true });
@@ -61,6 +61,7 @@ test('goalkeeper exemption prevents charge/removal and cannot erase already-repo
   expect((await getMatch(request, g.match.id, g.owner))).toMatchObject({ myPaymentStatus: null, canReportPayment: false });
   expect((await request.put(`/api/matches/${g.match.id}/payment/reported`, { headers: auth(g.owner) })).status()).toBe(409);
   const field = g.members[1];
+  await profile(request, g.id, field, 'MIDFIELDER', null, true);
   await body(await request.put(`/api/matches/${g.match.id}/goalkeepers/${field.user.id}`, { headers: auth(g.owner), data: { isGoalkeeper: true } }));
   expect((await getMatch(request, g.match.id, field)).myPaymentStatus).toBeNull();
   await body(await request.put(`/api/matches/${g.match.id}/goalkeepers/${field.user.id}`, { headers: auth(g.owner), data: { isGoalkeeper: false } }));
@@ -112,4 +113,46 @@ test('bulk cancellation settlements support not received, refunds, retained fund
   expect(state.attendances.find((a: any) => a.userId === g.owner.user.id).paymentSettlementStatus).toBe('REFUNDED');
   expect(state.attendances.find((a: any) => a.userId === g.members[0].user.id).paymentSettlementStatus).toBe('NOT_RECEIVED');
   expect(state.attendances.find((a: any) => a.userId === g.members[2].user.id).paymentSettlementStatus).toBe('RETAINED');
+});
+
+test('credit follows chronological priority, leaves the waiting list uncharged and returns on promotion', async ({ request, control }) => {
+  const g = await preparedMatch(request, control, { paymentRequired: true, goalkeeperPays: true });
+  const player = g.members[1];
+  await body(await request.put(`/api/matches/${g.match.id}/payment/reported`, { headers: auth(player) }));
+  await body(await request.put(`/api/matches/${g.match.id}/payments/${player.user.id}/confirm`, { headers: auth(g.owner) }));
+  await body(await request.delete(`/api/matches/${g.match.id}`, { headers: auth(g.owner) }), 204);
+  await body(await request.put(`/api/matches/${g.match.id}/payments/${player.user.id}/settlement`, { headers: auth(g.owner), data: { resolution: 'CREDITED' } }));
+  const now = Date.parse(await control.now());
+  const farDate = dateTime(new Date(now + 5 * 86400000).toISOString());
+  const nearDate = dateTime(new Date(now + 4 * 86400000).toISOString());
+  const far = await createMatch(request, control, g.id, g.owner, { date: farDate.date, startTime: farDate.time, paymentRequired: true });
+  const near = await createMatch(request, control, g.id, g.owner, { date: nearDate.date, startTime: nearDate.time, paymentRequired: true, maxPlayers: 3 });
+  expect((await getMatch(request, near.id, player)).myCreditAppliedAmount).toBe(25);
+  expect((await getMatch(request, far.id, player)).myCreditAppliedAmount).toBe(0);
+  for (const actor of [g.owner, g.members[0], g.members[2]]) await going(request, near.id, actor);
+  const waiting = await going(request, near.id, player);
+  expect(waiting).toMatchObject({ myAttendance: 'WAITLISTED', myCreditAppliedAmount: 0, myPaymentStatus: null });
+  const credits = await body(await request.get(`/api/groups/${g.id}/credits`, { headers: auth(player) }));
+  expect(credits[0]).toMatchObject({ allocatedMatchId: far.id, allocatedAmount: 25 });
+  await going(request, near.id, g.members[2], 'NOT_GOING');
+  const promoted = await getMatch(request, near.id, player);
+  expect(promoted).toMatchObject({ myAttendance: 'GOING', myPaymentStatus: 'PAID', myCreditAppliedAmount: 25, myRemainingPaymentAmount: 0 });
+  expect((await getMatch(request, far.id, player)).myCreditAppliedAmount).toBe(0);
+  expect((await body(await request.get(`/api/groups/${g.id}/credits`, { headers: auth(player) })))[0].availableAmount).toBe(0);
+});
+
+test('credit reserved for unconfirmed attendance is released at signup expiration', async ({ request, control }) => {
+  const g = await preparedMatch(request, control, { paymentRequired: true, goalkeeperPays: true });
+  const player = g.members[1];
+  await body(await request.put(`/api/matches/${g.match.id}/payment/reported`, { headers: auth(player) }));
+  await body(await request.put(`/api/matches/${g.match.id}/payments/${player.user.id}/confirm`, { headers: auth(g.owner) }));
+  await body(await request.delete(`/api/matches/${g.match.id}`, { headers: auth(g.owner) }), 204);
+  await body(await request.put(`/api/matches/${g.match.id}/payments/${player.user.id}/settlement`, { headers: auth(g.owner), data: { resolution: 'CREDITED' } }));
+  const next = await createMatch(request, control, g.id, g.owner, { paymentRequired: true });
+  expect((await getMatch(request, next.id, player))).toMatchObject({ myAttendance: 'PENDING', myCreditAppliedAmount: 25, myCreditAllocationStatus: 'RESERVED', goingCount: 0 });
+  await control.at(new Date(Date.parse(next.signupDeadline) + 1000).toISOString());
+  await control.process();
+  expect((await getMatch(request, next.id, player)).myCreditAppliedAmount).toBe(0);
+  const credits = await body(await request.get(`/api/groups/${g.id}/credits`, { headers: auth(player) }));
+  expect(credits[0]).toMatchObject({ availableAmount: 25, allocatedAmount: 0 });
 });

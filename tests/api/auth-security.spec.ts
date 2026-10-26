@@ -4,11 +4,11 @@ import { register, auth, body, password } from '../support/factory';
 test('reset issued code changes password once and invalidates previous credentials', async ({ request, control }) => {
   const user = await register(request);
   const url = '/api/auth/password-reset/request';
-  await body(await request.post(url, { data: { email: user.user.email } }));
+  await body(await request.post(url, { data: { email: user.user.email } }), 202);
   const emails = await control.call('/emails');
   expect(emails).toHaveLength(1);
   expect(emails[0].code).toMatch(/^\d{6}$/);
-  await body(await request.post(url, { data: { email: user.user.email.toUpperCase() } }));
+  await body(await request.post(url, { data: { email: user.user.email.toUpperCase() } }), 202);
   expect(await control.call('/emails')).toHaveLength(1);
   const data = { email: user.user.email, code: emails[0].code, newPassword: 'NovaSenha456!' };
   await body(await request.post('/api/auth/password-reset/confirm', { data }));
@@ -20,7 +20,7 @@ test('reset issued code changes password once and invalidates previous credentia
 
 test('expired recovery code is rejected without changing password', async ({ request, control }) => {
   const user = await register(request);
-  await body(await request.post('/api/auth/password-reset/request', { data: { email: user.user.email } }));
+  await body(await request.post('/api/auth/password-reset/request', { data: { email: user.user.email } }), 202);
   const [email] = await control.call('/emails');
   await control.call('/expire-reset-code', { userId: user.user.id });
   expect((await request.post('/api/auth/password-reset/confirm', { data: { email: user.user.email, code: email.code, newPassword: 'NovaSenha456!' } })).status()).toBe(400);
@@ -29,13 +29,13 @@ test('expired recovery code is rejected without changing password', async ({ req
 
 test('five invalid recovery attempts consume code and resend replaces old code', async ({ request, control }) => {
   const user = await register(request);
-  await body(await request.post('/api/auth/password-reset/request', { data: { email: user.user.email } }));
+  await body(await request.post('/api/auth/password-reset/request', { data: { email: user.user.email } }), 202);
   const [first] = await control.call('/emails');
   const wrong = first.code === '000000' ? '000001' : '000000';
   for (let i = 0; i < 5; i++) expect((await request.post('/api/auth/password-reset/confirm', { data: { email: user.user.email, code: wrong, newPassword: 'NovaSenha456!' } })).status()).toBe(400);
   expect((await request.post('/api/auth/password-reset/confirm', { data: { email: user.user.email, code: first.code, newPassword: 'NovaSenha456!' } })).status()).toBe(400);
   await control.call('/allow-reset-resend', { userId: user.user.id });
-  await body(await request.post('/api/auth/password-reset/request', { data: { email: user.user.email } }));
+  await body(await request.post('/api/auth/password-reset/request', { data: { email: user.user.email } }), 202);
   const emails = await control.call('/emails');
   expect(emails).toHaveLength(2);
   await body(await request.post('/api/auth/password-reset/confirm', { data: { email: user.user.email, code: emails[1].code, newPassword: 'NovaSenha456!' } }));
@@ -46,7 +46,7 @@ test('reset does not reveal account existence or provider failure', async ({ req
   await control.call('/boundaries', { failEmail: true });
   const known = await request.post('/api/auth/password-reset/request', { data: { email: user.user.email } });
   const unknown = await request.post('/api/auth/password-reset/request', { data: { email: 'unknown@onze.test' } });
-  expect(known.status()).toBe(200);
+  expect(known.status()).toBe(202);
   expect(unknown.status()).toBe(known.status());
   expect(await unknown.json()).toEqual(await known.json());
   expect(await control.call('/emails')).toHaveLength(0);

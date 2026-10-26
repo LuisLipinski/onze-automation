@@ -46,7 +46,7 @@ test('weekly series keeps four independent occurrences, rolls its window and can
   expect(matches.every((m: any) => m.maxPlayers === 18 && m.modality === 'FUT7')).toBe(true);
   await body(await request.delete(`/api/matches/${first.id}`, { headers: auth(g.owner) }), 204);
   expect((await getMatch(request, matches[1].id, g.owner)).status).toBe('SCHEDULED');
-  await control.at(new Date(Date.parse(first.startsAt) + 3600000).toISOString());
+  await control.at(new Date(Date.parse(matches[1].attendanceOpensAt) + 1000).toISOString());
   await control.process();
   const next = await getMatch(request, matches[1].id, g.owner);
   expect(next.attendanceOpen).toBe(true);
@@ -94,7 +94,7 @@ test('every member shares a match while public landing page reveals no private d
   const match = await createMatch(request, control, g.id, g.owner, { paymentRequired: true, notes: 'PRIVATE-NOTE', venue: 'PRIVATE-VENUE' });
   const shared = await body(await request.get(`/api/matches/${match.id}/share`, { headers: auth(g.members[0]) }));
   expect(JSON.stringify(shared)).toContain(match.id);
-  const page = await request.get(`/m/${match.id}`);
+  const page = await request.get(`/m/${match.id}`, { headers: { Accept: 'text/html' } });
   expect(page.status()).toBe(200);
   expect(page.headers()['content-type']).toContain('text/html');
   const html = await page.text();
@@ -104,5 +104,5 @@ test('every member shares a match while public landing page reveals no private d
   expect(html).not.toContain('qa@onze.test');
   const outsider = await register(request);
   expect((await request.get(`/api/matches/${match.id}/share`, { headers: auth(outsider) })).status()).toBe(403);
-  expect((await request.get('/m/00000000-0000-4000-8000-000000000001')).status()).toBe(404);
+  expect((await request.get('/m/00000000-0000-4000-8000-000000000001', { headers: { Accept: 'text/html' } })).status()).toBe(404);
 });

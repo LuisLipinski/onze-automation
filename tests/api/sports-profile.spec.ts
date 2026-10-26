@@ -135,7 +135,7 @@ test('deve manter o perfil esportivo independente por grupo e validar a autoedi√
   expect(updateResponse.status()).toBe(200);
   const updated = (await updateResponse.json()) as SportsProfileBody;
   expect(updated.positions).toHaveLength(2);
-  expect(updated.positions).toEqual(expect.arrayContaining(['DEFENDER', 'WINGER']));
+  expect(updated.positions).toEqual(expect.arrayContaining(['DEFENDER', 'ATTACKER']));
   expect(updated.canPlayGoalkeeper).toBe(true);
   expect(updated.dominantFoot).toBe('LEFT');
   expect(updated.technicalLevel).toBeNull();

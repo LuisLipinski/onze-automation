@@ -37,6 +37,8 @@ for (const tools of [false, true]) {
   if (!env.AUTOMATION_CONTROL_TOKEN || env.AUTOMATION_CONTROL_TOKEN.length < 24) throw new Error('Set AUTOMATION_CONTROL_TOKEN (24+ characters)');
   const args = ['-Xmx384m', '-cp', [classes, classpath].join(delimiter), 'com.onze.automation.AutomationApplication',
     '--server.address=127.0.0.1', `--server.port=${port}`, '--spring.main.banner-mode=off',
+    `--spring.datasource.url=${env.DATABASE_URL}`, `--spring.datasource.username=${env.DATABASE_USERNAME}`,
+    `--spring.datasource.password=${env.DATABASE_PASSWORD}`, `--notifications.expo.endpoint=${env.EXPO_PUSH_ENDPOINT}`,
     '--logging.level.root=WARN'];
   // The production-like instance exercises the real default (no flag supplied).
   delete env.ONZE_TEST_DATA_ENABLED;

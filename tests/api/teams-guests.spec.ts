@@ -35,7 +35,7 @@ test('generated teams preserve participant uniqueness, keeper distribution and p
   expect((await request.put(`/api/matches/${g.match.id}/teams/assignments/${field.id}`, { headers: auth(g.owner), data: { teamNumber: 99, assignedRole: 'PIVOT' } })).status()).toBe(400);
   expect((await request.put(`/api/matches/${g.match.id}/teams/assignments/${field.id}`, { headers: auth(g.owner), data: { teamNumber: 1, assignedRole: 'INVALID_ROLE' } })).status()).toBe(400);
   await going(request, g.match.id, g.members[2], 'NOT_GOING');
-  expect((await body(await request.get(`/api/matches/${g.match.id}/teams`, { headers: auth(g.owner) }))).teams).toHaveLength(0);
+  expect((await body(await request.get(`/api/matches/${g.match.id}/teams`, { headers: auth(g.owner) }))).teams.flatMap((t: any) => t.assignments)).toHaveLength(0);
 });
 
 test('team generation rejects missing keepers and incomplete/minimum participation', async ({ request, control }) => {
@@ -82,4 +82,15 @@ test('team names/images persist for the group and are snapshotted on live start'
   const next = await createMatch(request, control, g.id, g.owner);
   const reused = await body(await request.get(`/api/matches/${next.id}/teams/images`, { headers: auth(g.owner) }));
   expect(reused[0]).toMatchObject({ name: 'Preto QA', imageUrl: live.scores[0].imageUrl });
+});
+
+test('three internal teams reserve and distribute three goalkeepers without duplicating participants', async ({ request, control }) => {
+  const g = await group(request, 5);
+  for (const [index, actor] of g.actors.entries()) await profile(request, g.id, actor, index < 3 ? 'GOALKEEPER' : 'MIDFIELDER');
+  const match = await createMatch(request, control, g.id, g.owner, { teamCount: 3, requiredGoalkeepers: 3, maxPlayers: 8 });
+  for (const actor of g.actors) await going(request, match.id, actor);
+  const teams = await body(await request.post(`/api/matches/${match.id}/teams/generate`, { headers: auth(g.owner) }));
+  expect(teams.teams).toHaveLength(3);
+  expect(teams.teams.every((t: any) => t.assignments.filter((p: any) => p.assignedRole === 'GOALKEEPER').length === 1)).toBe(true);
+  expect(new Set(teams.teams.flatMap((t: any) => t.assignments.map((p: any) => p.participantId))).size).toBe(6);
 });

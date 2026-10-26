@@ -88,3 +88,14 @@ test('shootout can end early once the losing side cannot catch up', async ({ req
   expect(state.penaltyShootout).toMatchObject({ status: 'AWAITING_CONFIRMATION', winnerTeamNumber: 1 });
   expect((await request.post(path + '/penalties/attempts', { headers: auth(g.owner), data: { scored: true } })).status()).toBe(409);
 });
+
+test('tied overtime reaches shootout setup without finishing the occurrence', async ({ request, control }) => {
+  const g = await liveMatch(request, control, { periodsEnabled: true, periodCount: 1, periodDurationMinutes: 1, overtimeEnabled: true, overtimePeriodCount: 1, overtimePeriodDurationMinutes: 1, penaltyShootoutEnabled: true });
+  const path = `/api/matches/${g.match.id}/live/period`;
+  await control.advance(60000);
+  await body(await request.put(path + '/finish', { headers: auth(g.owner) }));
+  await body(await request.put(path + '/start-next', { headers: auth(g.owner) }));
+  await control.advance(60000);
+  const state = await body(await request.put(path + '/finish', { headers: auth(g.owner) }));
+  expect(state).toMatchObject({ status: 'IN_PROGRESS', phase: 'PENALTY_SHOOTOUT', penaltyShootout: { status: 'SETUP' } });
+});

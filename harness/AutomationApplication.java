@@ -23,7 +23,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 /** Test process only. This class is never packaged in onze-api or deployed. */
 public class AutomationApplication {
-    static final AtomicReference<Instant> NOW = new AtomicReference<>(Instant.now());
+    static final AtomicReference<Instant> NOW = new AtomicReference<>(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
     static final List<Map<String, String>> EMAILS = new CopyOnWriteArrayList<>();
     static final List<Object> PUSHES = new CopyOnWriteArrayList<>();
     static final Queue<Map<String, Object>> EXPO_REPLIES = new ConcurrentLinkedQueue<>();
@@ -69,7 +69,7 @@ public class AutomationApplication {
                     case "/reset" -> {
                         List<String> tables = db.queryForList("select tablename from pg_tables where schemaname='public' and tablename <> 'flyway_schema_history'", String.class);
                         if (!tables.isEmpty()) db.execute("truncate table " + tables.stream().map(n -> "\"" + n.replace("\"", "\"\"") + "\"").collect(java.util.stream.Collectors.joining(",")) + " restart identity cascade");
-                        NOW.set(Instant.now()); EMAILS.clear(); PUSHES.clear(); EXPO_REPLIES.clear();
+                        NOW.set(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS)); EMAILS.clear(); PUSHES.clear(); EXPO_REPLIES.clear();
                         failMedia = false; failEmail = false;
                         result = Map.of("now", NOW.get().toString());
                     }

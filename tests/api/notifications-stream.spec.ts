@@ -86,7 +86,7 @@ test('SSE delivers actual goal updates and snapshots while other groups remain i
     expect(changed.matchId).toBe(g.match.id);
     expect(changed.liveMatch.goalEvents[0].scorerAssignmentId).toBe(scorer.id);
     expect(events.some(e => e.matchId === foreign.match.id)).toBe(false);
-    const denied = await request.get(`/api/matches/live/stream?matchId=${foreign.match.id}`, { headers: auth(g.members[0]) });
+    const denied = await request.get(`/api/matches/live/stream?matchId=${foreign.match.id}`, { headers: { ...auth(g.members[0]), Accept: 'text/event-stream, application/json' } });
     expect(denied.status()).toBe(403);
   } finally { abort.abort(); await reader.cancel().catch(() => {}); await pump; }
 });
@@ -103,4 +103,21 @@ test('deleting group delivers persisted notices and a deletion push to former me
   expect(messages[0]).toMatchObject({ to: token(member.user.id), data: { groupId: g.id, route: '/groups' } });
   const notices = await body(await request.get('/api/groups/deletion-notices', { headers: auth(member) }));
   expect(notices[0].id).toBe(messages[0].data.noticeId);
+});
+
+test('persistent provider failure reaches FAILED and stops after the bounded retry limit', async ({ request, control }) => {
+  const g = await preparedMatch(request, control, { paymentRequired: true, goalkeeperPays: true });
+  const player = g.members[1];
+  await control.process();
+  await body(await request.put('/api/devices/push-token', { headers: auth(player), data: { token: token(player.user.id) } }), 204);
+  await body(await request.post(`/api/matches/${g.match.id}/payments/${player.user.id}/reminder`, { headers: auth(g.owner) }));
+  for (let attempt = 1; attempt <= 5; attempt++) {
+    await control.call('/expo-plan', { status: 503, body: { errors: [{ message: 'unavailable' }] } });
+    await control.process();
+    const job = (await control.call('/outbox')).find((j: any) => j.notification_type === 'PAYMENT_REMINDER' && j.recipient_user_id === player.user.id);
+    expect(job).toMatchObject({ attempts: attempt, status: attempt === 5 ? 'FAILED' : 'PENDING' });
+    await control.advance(2 ** (attempt - 1) * 60000 + 1000);
+  }
+  await control.process();
+  expect(flatten(await control.call('/pushes'))).toHaveLength(5);
 });

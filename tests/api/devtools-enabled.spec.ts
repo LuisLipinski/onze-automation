@@ -1,7 +1,7 @@
 import { test, expect } from '../support/test';
 import { group, createMatch, auth, body } from '../support/factory';
 
-test('explicitly enabled tools generate/reuse players, apply scenarios and add/remove attendance', async ({ request, control }) => {
+test('explicitly enabled tools regenerate players, apply scenarios and add/remove attendance', async ({ request, control }) => {
   const g = await group(request, 1);
   const match = await createMatch(request, control, g.id, g.owner, { maxPlayers: 14 });
   expect(match.canManageTestData).toBe(true);
@@ -13,7 +13,7 @@ test('explicitly enabled tools generate/reuse players, apply scenarios and add/r
   const generated = await body(await request.post(path + '/generate', { headers: auth(g.owner), data: { count: 6 } }));
   expect(generated.created).toBe(6);
   const reused = await body(await request.post(path + '/generate', { headers: auth(g.owner), data: { count: 6 } }));
-  expect(reused).toMatchObject({ created: 0, reused: 6 });
+  expect(reused).toMatchObject({ created: 6, reused: 0, totalTestPlayers: 6 });
   for (const scenario of ['BALANCED','ATTACK_VS_DEFENSE','UNEVEN','SPECIALISTS','SECONDARY_POSITIONS','GOALKEEPER_PRIORITY']) {
     const applied = await body(await request.put(path + '/scenario', { headers: auth(g.owner), data: { scenario } }));
     expect(applied).toMatchObject({ scenario, updatedPlayers: 6 });

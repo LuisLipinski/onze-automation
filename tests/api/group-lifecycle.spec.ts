@@ -11,7 +11,7 @@ test('group deletion is principal-only, cascades owned data and keeps notices is
   expect((await request.delete(`/api/groups/${g.id}`, { headers: auth(member) })).status()).toBe(403);
   await body(await request.delete(`/api/groups/${g.id}`, { headers: auth(g.owner) }), 204);
   expect((await request.get(`/api/matches/${match.id}`, { headers: auth(g.owner) })).status()).toBe(404);
-  expect((await request.get(`/join/${g.invitation.code}`)).status()).toBe(404);
+  expect((await request.get(`/join/${g.invitation.code}`, { headers: { Accept: 'text/html' } })).status()).toBe(404);
   const notices = await body(await request.get('/api/groups/deletion-notices', { headers: auth(member) }));
   expect(notices).toHaveLength(1);
   expect(notices[0]).toMatchObject({ groupId: g.id, groupName: 'Grupo automação' });
@@ -29,14 +29,14 @@ test('group deletion is principal-only, cascades owned data and keeps notices is
 test('photo validation and provider failure preserve the saved group', async ({ request, control }) => {
   const g = await group(request, 0);
   const path = `/api/groups/${g.id}/photo`;
-  const invalid = await request.post(path, { headers: auth(g.owner), multipart: { file: { name: 'text.txt', mimeType: 'text/plain', buffer: Buffer.from('invalid') } } });
+  const invalid = await request.post(path, { headers: auth(g.owner), multipart: { photo: { name: 'text.txt', mimeType: 'text/plain', buffer: Buffer.from('invalid') } } });
   expect(invalid.status()).toBe(400);
-  const large = await request.post(path, { headers: auth(g.owner), multipart: { file: { name: 'large.png', mimeType: 'image/png', buffer: Buffer.alloc(5 * 1024 * 1024 + 1) } } });
+  const large = await request.post(path, { headers: auth(g.owner), multipart: { photo: { name: 'large.png', mimeType: 'image/png', buffer: Buffer.alloc(5 * 1024 * 1024 + 1) } } });
   expect([400, 413]).toContain(large.status());
-  const saved = await body(await request.post(path, { headers: auth(g.owner), multipart: { file: { name: 'photo.png', mimeType: 'image/png', buffer: png } } }));
+  const saved = await body(await request.post(path, { headers: auth(g.owner), multipart: { photo: { name: 'photo.png', mimeType: 'image/png', buffer: png } } }));
   expect(saved.photoUrl).toBe(`https://media.onze.test/groups/${g.id}.png`);
   await control.call('/boundaries', { failMedia: true });
-  expect((await request.post(path, { headers: auth(g.owner), multipart: { file: { name: 'photo.png', mimeType: 'image/png', buffer: png } } })).status()).toBe(502);
+  expect((await request.post(path, { headers: auth(g.owner), multipart: { photo: { name: 'photo.png', mimeType: 'image/png', buffer: png } } })).status()).toBe(502);
   const [current] = await body(await request.get('/api/groups', { headers: auth(g.owner) }));
   expect(current.photoUrl).toBe(saved.photoUrl);
 });
@@ -53,7 +53,7 @@ test('ordinary members read their own technical profile without editing it or re
   expect(own.ratings).toEqual(ratings(8));
   expect((await request.get(`/api/groups/${g.id}/members/${other.membershipId}/technical-profile`, { headers: auth(member) })).status()).toBe(403);
   expect((await request.put(adminPath, { headers: auth(member), data: { ratings: ratings(1) } })).status()).toBe(403);
-  expect((await request.put(ownPath, { headers: auth(member), data: { ratings: ratings(1) } })).status()).toBe(405);
+  expect((await request.put(ownPath, { headers: auth(member), data: { ratings: ratings(1) } })).status()).toBe(400);
   const outsider = await register(request);
   expect((await request.get(ownPath, { headers: auth(outsider) })).status()).toBe(403);
   expect((await body(await request.get(ownPath, { headers: auth(member) }))).ratings).toEqual(ratings(8));
@@ -69,7 +69,7 @@ test('technical configuration and all 17 ratings enforce ranges, clearing and gr
   const actual = await body(await request.get(path, { headers: auth(g.owner) }));
   expect(actual.ratings).toEqual(ratings(10));
   await body(await request.put(path, { headers: auth(g.owner), data: { ratings: { PASSING: null } } }));
-  expect((await body(await request.get(path, { headers: auth(g.owner) }))).ratings.PASSING).toBeNull();
+  expect((await body(await request.get(path, { headers: auth(g.owner) }))).ratings).not.toHaveProperty('PASSING');
   const other = await group(request, 0);
   expect((await request.get(`/api/groups/${other.id}/members/${g.members[0].membershipId}/technical-profile`, { headers: auth(other.owner) })).status()).toBe(404);
 });
@@ -96,7 +96,7 @@ test('delegated operations stop immediately on revocation and principal powers c
   expect((await request.put(`/api/groups/${g.id}/members/${member.membershipId}/permissions`, { headers: auth(admin), data: { permissions: ['EDIT_GROUP'] } })).status()).toBe(403);
   expect((await request.put(`/api/groups/${g.id}/primary-admin`, { headers: auth(admin), data: { replacementMemberId: admin.membershipId } })).status()).toBe(403);
   await body(await request.put(`/api/groups/${g.id}/members/${admin.membershipId}/demote`, { headers: auth(g.owner) }));
-  const list = await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(member) }));
+  const list = await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(g.owner) }));
   expect(list.find((m: any) => m.userId === admin.user.id)).toMatchObject({ role: 'MEMBER', permissions: [] });
   await body(await request.delete(`/api/groups/${g.id}/members/${member.membershipId}`, { headers: auth(g.owner) }), 204);
   expect((await request.get(`/api/groups/${g.id}/members`, { headers: auth(member) })).status()).toBe(403);

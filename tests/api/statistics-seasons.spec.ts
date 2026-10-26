@@ -92,3 +92,57 @@ test('new season starts empty, general accumulates and closed season/history rem
   expect((await body(await request.get(base + `?seasonId=${secondSeason.id}`, { headers: auth(g.owner) }))).finishedMatches).toBe(1);
   expect((await request.get(base + '?seasonId=00000000-0000-4000-8000-000000000001', { headers: auth(g.owner) })).status()).toBe(404);
 });
+
+test('games rank uses wins; wins/goals/assists resolve remaining ties by games played', async ({ request, control }) => {
+  const g = await generatedMatch(request, control);
+  const a = g.members[1], b = g.members[2];
+  const statistics = `/api/groups/${g.id}/statistics`;
+  const configure = async (id: string, includeB = true) => {
+    const teams = await body(await request.get(`/api/matches/${id}/teams`, { headers: auth(g.owner) }));
+    const assignments = teams.teams.flatMap((t: any) => t.assignments.map((p: any) => ({ ...p, teamNumber: t.teamNumber })));
+    for (const [actor, side] of [[a, includeB ? 1 : 2], [b, 2]] as const) {
+      if (!includeB && actor === b) continue;
+      const assignment = assignments.find((p: any) => p.participantId === actor.user.id);
+      await body(await request.put(`/api/matches/${id}/teams/assignments/${assignment.id}`, { headers: auth(g.owner), data: { teamNumber: side, assignedRole: 'PIVOT' } }));
+      assignment.teamNumber = side;
+    }
+    await body(await request.put(`/api/matches/${id}/live/start`, { headers: auth(g.owner) }));
+    return assignments;
+  };
+  const goal = async (id: string, scorer: any, assist?: any) => body(await request.post(`/api/matches/${id}/live/goals`, { headers: auth(g.owner), data: { scorerAssignmentId: scorer.id, assistAssignmentId: assist?.id, penalty: false } }), 201);
+  let assignments = await configure(g.match.id);
+  const firstA = assignments.find((p: any) => p.participantId === a.user.id);
+  const firstB = assignments.find((p: any) => p.participantId === b.user.id);
+  await goal(g.match.id, firstA);
+  await goal(g.match.id, assignments.find((p: any) => p.assignedRole === 'GOALKEEPER' && p.teamNumber === 1), firstA);
+  await goal(g.match.id, assignments.find((p: any) => p.assignedRole === 'GOALKEEPER' && p.teamNumber === 2), firstB);
+  await body(await request.put(`/api/matches/${g.match.id}/live/finish`, { headers: auth(g.owner) }));
+  let stats = await body(await request.get(statistics, { headers: auth(g.owner) }));
+  let order = stats.rankings.gamesPlayed.map((p: any) => p.userId);
+  expect(order.indexOf(a.user.id)).toBeLessThan(order.indexOf(b.user.id));
+  const second = await createMatch(request, control, g.id, g.owner);
+  for (const actor of g.actors) await going(request, second.id, actor);
+  await body(await request.post(`/api/matches/${second.id}/teams/generate`, { headers: auth(g.owner) }));
+  assignments = await configure(second.id);
+  await goal(second.id, assignments.find((p: any) => p.participantId === b.user.id));
+  await body(await request.put(`/api/matches/${second.id}/live/finish`, { headers: auth(g.owner) }));
+  stats = await body(await request.get(statistics, { headers: auth(g.owner) }));
+  for (const metric of ['goals','assists']) expect(stats.rankings[metric].find((p: any) => p.userId === a.user.id).rank).toBe(stats.rankings[metric].find((p: any) => p.userId === b.user.id).rank);
+  const third = await createMatch(request, control, g.id, g.owner);
+  for (const actor of [g.owner, g.members[0], a]) await going(request, third.id, actor);
+  await body(await request.post(`/api/matches/${third.id}/teams/generate`, { headers: auth(g.owner) }));
+  assignments = await configure(third.id, false);
+  await goal(third.id, assignments.find((p: any) => p.assignedRole === 'GOALKEEPER' && p.teamNumber === 1));
+  await body(await request.put(`/api/matches/${third.id}/live/finish`, { headers: auth(g.owner) }));
+  stats = await body(await request.get(statistics, { headers: auth(g.owner) }));
+  expect(stats.players.find((p: any) => p.userId === a.user.id).totals).toMatchObject({ gamesPlayed: 3, wins: 1, losses: 2, goals: 1, assists: 1 });
+  expect(stats.players.find((p: any) => p.userId === b.user.id).totals).toMatchObject({ gamesPlayed: 2, wins: 1, losses: 1, goals: 1, assists: 1 });
+  for (const metric of ['wins','goals','assists','losses']) {
+    order = stats.rankings[metric].map((p: any) => p.userId);
+    expect(order.indexOf(a.user.id), metric).toBeLessThan(order.indexOf(b.user.id));
+  }
+  const cancelled = await createMatch(request, control, g.id, g.owner);
+  for (const actor of g.actors) await going(request, cancelled.id, actor);
+  await body(await request.delete(`/api/matches/${cancelled.id}`, { headers: auth(g.owner) }), 204);
+  expect((await body(await request.get(statistics, { headers: auth(g.owner) }))).finishedMatches).toBe(3);
+});

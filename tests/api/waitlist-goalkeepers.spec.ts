@@ -119,3 +119,31 @@ test('concurrent confirmations cannot consume reserved keeper places or duplicat
   const positions = state.attendances.filter((a: any) => a.status === 'WAITLISTED').map((a: any) => a.waitlistPosition).sort();
   expect(positions).toEqual([1,2,3]);
 });
+
+test('one eligible secondary keeper is assigned at deadline while volunteers remain a manual choice', async ({ request, control }) => {
+  const g = await group(request, 2);
+  await profile(request, g.id, g.owner, 'MIDFIELDER');
+  await profile(request, g.id, g.members[0], 'DEFENDER', 'GOALKEEPER');
+  await profile(request, g.id, g.members[1], 'MIDFIELDER', null, true);
+  const match = await createMatch(request, control, g.id, g.owner, { maxPlayers: 6 });
+  for (const actor of g.actors) await going(request, match.id, actor);
+  await control.at(new Date(Date.parse(match.signupDeadline) + 1000).toISOString());
+  await control.process();
+  const state = await getMatch(request, match.id, g.owner);
+  expect(state.currentGoalkeepers).toBe(1);
+  expect(state.attendances.find((a: any) => a.userId === g.members[0].user.id).isGoalkeeper).toBe(true);
+  expect(state.attendances.find((a: any) => a.userId === g.members[1].user.id).isGoalkeeper).toBe(false);
+});
+
+test('ambiguous secondary keepers require administrator choice', async ({ request, control }) => {
+  const g = await group(request, 2);
+  await profile(request, g.id, g.owner, 'GOALKEEPER');
+  for (const actor of g.members) await profile(request, g.id, actor, 'DEFENDER', 'GOALKEEPER');
+  const match = await createMatch(request, control, g.id, g.owner, { maxPlayers: 5 });
+  for (const actor of g.actors) await going(request, match.id, actor);
+  await control.at(new Date(Date.parse(match.signupDeadline) + 1000).toISOString());
+  await control.process();
+  expect((await getMatch(request, match.id, g.owner))).toMatchObject({ currentGoalkeepers: 1, secondaryGoalkeeperDecisionRequired: true });
+  await body(await request.put(`/api/matches/${match.id}/goalkeepers/${g.members[0].user.id}`, { headers: auth(g.owner), data: { isGoalkeeper: true } }));
+  expect((await getMatch(request, match.id, g.owner)).currentGoalkeepers).toBe(2);
+});

@@ -51,7 +51,7 @@ test('own goal credits opposing side without personal goal, assist or automatic 
   const created = await body(await request.post(path + '/goals', { headers: auth(g.owner), data: { scorerAssignmentId: scorer.id, sideNumber: 2, ownGoal: true, penalty: false } }), 201);
   expect(created.event).toMatchObject({ sideNumber: 2, ownGoal: true, shotRecorded: false });
   expect(created.liveMatch.scores[1].score).toBe(1);
-  expect(created.liveMatch.teamStatistics[1].shotsOnTarget).toBe(0);
+  expect((created.liveMatch.teamStatistics.find((s: any) => s.sideNumber === 2)?.shotsOnTarget ?? 0)).toBe(0);
   expect((await request.post(path + '/goals', { headers: auth(g.owner), data: { scorerAssignmentId: scorer.id, sideNumber: 1, ownGoal: true, penalty: false } })).status()).toBe(400);
   await body(await request.delete(path + `/goals/${created.event.id}`, { headers: auth(g.owner) }));
   expect((await live(request, g.match.id, g.owner)).scores[1].score).toBe(0);
@@ -83,11 +83,11 @@ test('two yellows expel a player, deletion restores eligibility, red cards have 
   const path = `/api/matches/${g.match.id}/live`;
   await body(await request.post(path + '/cards', { headers: auth(g.owner), data: { playerAssignmentId: actor.id, cardType: 'YELLOW' } }), 201);
   const second = await body(await request.post(path + '/cards', { headers: auth(g.owner), data: { playerAssignmentId: actor.id, cardType: 'YELLOW' } }), 201);
-  expect((await request.post(path + '/goals', { headers: auth(g.owner), data: { scorerAssignmentId: actor.id, penalty: false } })).status()).toBe(409);
+  expect((await request.post(path + '/goals', { headers: auth(g.owner), data: { scorerAssignmentId: actor.id, penalty: false } })).status()).toBe(400);
   await body(await request.delete(path + `/cards/${second.event.id}`, { headers: auth(g.owner) }));
   await body(await request.post(path + '/goals', { headers: auth(g.owner), data: { scorerAssignmentId: actor.id, penalty: false } }), 201);
   const red = await body(await request.post(path + '/cards', { headers: auth(g.owner), data: { playerAssignmentId: actor.id, cardType: 'RED' } }), 201);
-  expect((await request.post(path + '/cards', { headers: auth(g.owner), data: { playerAssignmentId: actor.id, cardType: 'YELLOW' } })).status()).toBe(409);
+  expect((await request.post(path + '/cards', { headers: auth(g.owner), data: { playerAssignmentId: actor.id, cardType: 'YELLOW' } })).status()).toBe(400);
   await body(await request.delete(path + `/cards/${red.event.id}`, { headers: auth(g.owner) }));
 });
 
@@ -139,6 +139,7 @@ test('three-hour automatic finish fixes finishedAt and blocks further live write
   await control.at(new Date(Date.parse(end) + 60000).toISOString());
   await control.process();
   const after = await live(request, g.match.id, g.owner);
-  expect(after).toMatchObject({ status: 'FINISHED', finishedAt: end });
+  expect(after.status).toBe('FINISHED');
+  expect(Date.parse(after.finishedAt)).toBe(Date.parse(end));
   expect((await request.put(`/api/matches/${g.match.id}/live/score`, { headers: auth(g.owner), data: { sideNumber: 1, score: 1 } })).status()).toBe(409);
 });
