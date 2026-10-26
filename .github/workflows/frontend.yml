@@ -58,7 +58,7 @@ jobs:
         run: npm run frontend:contract
       - name: Install mobile dependencies
         working-directory: mobile-source
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
       - name: Build isolated x86_64 release APK
         working-directory: mobile-source
         run: |
