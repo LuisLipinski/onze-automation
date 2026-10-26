@@ -177,8 +177,10 @@ test('[UI-L08] pênalti perdido não soma gol e exclusão desfaz a cobrança vin
   await ui.tap(victim.displayName);
   await ui.tap(offender.displayName);
   await ui.tap('Registrar');
+  await ui.has('Quem vai cobrar?');
   await ui.tap(victim.displayName);
   await ui.tap('Continuar');
+  await ui.has('Foi gol?');
   await ui.tap('Não, perdeu');
   await ui.tap('Salvar resultado');
   await ui.sees('PÊNALTI PERDIDO', true);
@@ -219,7 +221,7 @@ test('[UI-L10] tempos respeitam relógio e administrador inicia segundo tempo', 
   await ui.open('home');
   await ui.open('live-match', { matchId: g.match.id });
   await ui.scroll('down');
-  await ui.has('Encerrar 1º tempo', false, 90_000);
+  await ui.has('O tempo pode ser encerrado.', true, 90_000);
   await ui.tap('Encerrar 1º tempo');
   await ui.sees('Iniciar 2º tempo');
   await ui.tap('Iniciar 2º tempo');
@@ -309,7 +311,7 @@ test('[UI-L16] empate abre prorrogação e administrador inicia o tempo extra', 
   await ui.login(g.owner);
   await ui.open('live-match', { matchId: g.match.id });
   await ui.scroll('down');
-  await ui.has('Encerrar 1º tempo', false, 90_000);
+  await ui.has('O tempo pode ser encerrado.', true, 90_000);
   await ui.tap('Encerrar 1º tempo');
   await ui.tap('Iniciar 1º tempo da prorrogação');
   await expect.poll(async () => (await live(request, g.match.id, g.owner)).periods.at(-1).periodType).toBe('OVERTIME');

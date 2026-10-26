@@ -42,9 +42,11 @@ export class Android {
       'appium:autoGrantPermissions': true, 'appium:newCommandTimeout': 240,
       'appium:adbExecTimeout': 60_000, 'appium:uiautomator2ServerInstallTimeout': 90_000,
       'appium:disableWindowAnimation': true,
+      'appium:showLogcat': true,
+      'appium:logcatFilterSpecs': ['ReactNativeJS:W', 'AndroidRuntime:E', '*:S'],
     } } });
     this.session = value.sessionId;
-    await this.command(this.path('/appium/settings'), { settings: { waitForIdleTimeout: 0, waitForSelectorTimeout: 0 } });
+    await this.command(this.path('/appium/settings'), { settings: { waitForIdleTimeout: 500, waitForSelectorTimeout: 0 } });
   }
   async stop() { if (this.session) await this.command(this.path(''), undefined, 'DELETE'); }
   async reset(beginTest = false) {
@@ -83,10 +85,24 @@ export class Android {
     }
   }
   async scroll(direction: 'up' | 'down' = 'down') {
-    const containers = await this.elements(`//*[@scrollable='true']`);
-    return this.execute('mobile: scrollGesture', containers.length
-      ? { elementId: containers.at(-1)![elementKey], direction, percent: 0.7 }
-      : { left: 50, top: 200, width: 950, height: 1700, direction, percent: 0.7 });
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const containers = await this.elements(`//*[@scrollable='true']`);
+        const box = containers.length
+          ? await this.command(this.path(`/element/${containers.at(-1)![elementKey]}/rect`))
+          : { x: 40, y: 190, width: 970, height: 1720 };
+        // Use the live viewport bounds. Passing a cached UiObject2 to Android's
+        // scroll implementation becomes stale during React layout updates.
+        if (!containers.length) return false;
+        await this.execute('mobile: swipeGesture', {
+          left: box.x + 10, top: box.y + 10,
+          width: Math.max(1, box.width - 20), height: Math.max(1, box.height - 20), direction, percent: 0.7, speed: 3000,
+        });
+        return true;
+      } catch (error) {
+        if (attempt || !(error instanceof Error) || !error.message.includes('stale element reference')) throw error;
+      }
+    }
   }
   async seek(text: string, contains = false): Promise<Element> {
     // Allow asynchronous requests/navigation to settle before moving the screen.
@@ -127,8 +143,9 @@ export class Android {
     }
   }
   private async click(element: Element) {
-    this.evidence.commands++;
-    await this.command(this.path(`/element/${element[elementKey]}/click`), {});
+    // Gesture taps are reliable for React Native dialog controls where a
+    // UiObject2 click can return successfully without dispatching the press.
+    await this.execute('mobile: clickGesture', { elementId: element[elementKey] });
   }
   async tapLast(text: string) {
     await this.seek(text);
@@ -136,18 +153,28 @@ export class Android {
     await this.click(matches.at(-1)!);
   }
   async fill(placeholder: string, value: string) {
-    const element = await this.seek(placeholder);
-    await this.fillElement(element, value);
+    await this.fillMatching(placeholder, value, false);
   }
   async fillByLabel(prefix: string, value: string) {
-    const element = await this.seek(prefix, true);
-    await this.fillElement(element, value);
+    await this.fillMatching(prefix, value, true);
   }
-  private async fillElement(element: Element, value: string) {
-    const id = element[elementKey];
-    await this.command(this.path(`/element/${id}/clear`), {});
-    this.evidence.commands++;
-    await this.command(this.path(`/element/${id}/value`), { text: value });
+  private async fillMatching(label: string, value: string, contains: boolean) {
+    const original = await this.seek(label, contains);
+    const inputs = await this.elements('//android.widget.EditText');
+    const index = inputs.findIndex(element => element[elementKey] === original[elementKey]);
+    expect(index, `Editable Android input ${label}`).toBeGreaterThanOrEqual(0);
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const element = (await this.elements('//android.widget.EditText'))[index];
+        await this.command(this.path(`/element/${element[elementKey]}/clear`), {});
+        const fresh = (await this.elements('//android.widget.EditText'))[index];
+        this.evidence.commands++;
+        await this.command(this.path(`/element/${fresh[elementKey]}/value`), { text: value });
+        break;
+      } catch (error) {
+        if (attempt === 2 || !(error instanceof Error) || !error.message.includes('stale element reference')) throw error;
+      }
+    }
     await this.execute('mobile: hideKeyboard').catch(() => undefined);
   }
   async has(text: string, contains = false, timeout = 20_000) {
@@ -160,7 +187,7 @@ export class Android {
   }
   async absent(text: string, contains = false) {
     this.evidence.assertions++;
-    expect(await this.find(text, contains), `Android must hide ${text}`).toBeUndefined();
+    await expect.poll(async () => this.find(text, contains), { message: `Android must hide ${text}` }).toBeUndefined();
   }
   async screen(route: string, sentinel: string, contains = false) {
     await this.sees(sentinel, contains);
@@ -208,8 +235,7 @@ export class Android {
   async tapId(id: string) {
     const element = (await this.elements(`//*[@resource-id=${literal(id)}]`))[0];
     expect(element, `Android resource ${id}`).toBeTruthy();
-    this.evidence.commands++;
-    await this.command(this.path(`/element/${element[elementKey]}/click`), {});
+    await this.click(element);
   }
   async hasId(id: string) {
     this.evidence.assertions++;

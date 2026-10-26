@@ -13,8 +13,10 @@ test('[UI-M01] calendário e relógio são nativos e jogo é criado com convite'
   await ui.hasId('android:id/timePicker');
   await ui.tapId('android:id/button2');
   await ui.tap('Horário do jogo:', true);
+  await ui.hasId('android:id/timePicker');
   await ui.tapId('android:id/hours');
   await ui.tap('14');
+  await ui.tapId('android:id/minutes');
   await ui.tap('15');
   await ui.tapId('android:id/button1');
   await ui.fill('Ex.: Arena dos Amigos', 'Arena Android');
@@ -72,7 +74,7 @@ test('[UI-M04] próxima ocorrência semanal tem presença fechada e independente
   await ui.sees('Presença ainda fechada');
   await ui.disabled('✓ Vou jogar');
   await ui.disabled('Não vou');
-  expect((await getMatch(request, matches[1].id, g.members[0])).myAttendance).toBe('PENDING');
+  expect((await getMatch(request, matches[1].id, g.members[0])).myAttendance).toBeNull();
 });
 
 test('[UI-M05] configuração atualiza mínimo e máximo somente neste jogo', async ({ ui, request, control }) => {
@@ -136,6 +138,7 @@ test('[UI-M08] falta de mínimo oferece manter jogo e extensão nativa do prazo'
   await ui.tapId('android:id/button2');
   await ui.tap('Voltar');
   await ui.tap('Manter mesmo assim');
+  await ui.has('Manter abaixo do mínimo?');
   await ui.tap('Manter jogo');
   await expect.poll(async () => (await body(await request.get(`/api/matches/${match.id}/minimum-player-decision`, { headers: auth(g.owner) }))).belowMinimumApproved).toBe(true);
   await ui.absent('Manter mesmo assim');

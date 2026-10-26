@@ -52,7 +52,7 @@ test('[UI-P04] perfil incompleto impede salvar sem posição', async ({ ui, requ
   await ui.login(g.owner);
   await ui.open('sports-profile', { groupId: g.id });
   await ui.tap('Salvar perfil esportivo');
-  await ui.sees('posição principal', true);
+  await ui.sees('Escolha sua posição principal.');
   const saved = await body(await request.get(`/api/groups/${g.id}/members/me/sports-profile`, { headers: auth(g.owner) }));
   expect(saved.primaryPosition).toBeNull();
 });

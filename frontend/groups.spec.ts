@@ -119,7 +119,7 @@ test('[UI-G07] principal transfere cargo com confirmação', async ({ ui, reques
   await ui.tap('Tornar principal');
   await ui.tap('Transferir cargo');
   await expect.poll(async () => (await readGroup(request, g.id, g.members[0]))?.role).toBe('PRIMARY_ADMIN');
-  await ui.sees('Administrador principal');
+  await ui.sees('ADMINISTRADOR PRINCIPAL');
 });
 
 test('[UI-G08] rebaixa administrador e remove membro com confirmação', async ({ ui, request }) => {
@@ -153,6 +153,7 @@ test('[UI-G09] configura grupo e confirmação de exclusão permite cancelar', a
   await ui.tap('Manter grupo');
   expect(await readGroup(request, g.id, g.owner)).toBeTruthy();
   await ui.tap('Excluir grupo');
+  await ui.has('Excluir este grupo?');
   await ui.tap('Excluir grupo');
   await expect.poll(async () => readGroup(request, g.id, g.owner)).toBeUndefined();
   await ui.reset();
