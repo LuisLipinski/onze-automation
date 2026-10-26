@@ -67,8 +67,17 @@ export class Android {
     return this.command(this.path('/elements'), { using: 'xpath', value: selector });
   }
   async find(text: string, contains = false) {
+    await this.dismissNotificationPermission();
     const byDescription = contains ? `//*[contains(@content-desc,${literal(text)})]` : `//*[@content-desc=${literal(text)}]`;
     return (await this.elements(byDescription))[0] ?? (await this.elements(this.selector(text, contains)))[0];
+  }
+  private async dismissNotificationPermission() {
+    const notificationRequest = await this.elements(`//*[@resource-id='com.android.permissioncontroller:id/permission_message' and contains(@text,'Onze') and contains(@text,'notifications')]`);
+    if (!notificationRequest.length) return;
+    // Exercise the OS denial path, keeping the emulator independent of real
+    // Expo/FCM registration. Push delivery remains in the backend boundary suite.
+    this.evidence.assertions++;
+    await this.tapId('com.android.permissioncontroller:id/permission_deny_button');
   }
   async scroll(direction: 'up' | 'down' = 'down') {
     return this.execute('mobile: scrollGesture', { left: 50, top: 200, width: 950, height: 1700, direction, percent: 0.75 });
@@ -139,9 +148,8 @@ export class Android {
   }
   async disabled(text: string) {
     await this.seek(text);
-    const matches = await this.elements(`//*[@enabled='false' and (@text=${literal(text)} or @content-desc=${literal(text)} or .//*[@text=${literal(text)} or @content-desc=${literal(text)}])]`);
     this.evidence.assertions++;
-    expect(matches.length, `${text} must be disabled on Android`).toBeGreaterThan(0);
+    await expect.poll(async () => (await this.elements(`//*[@enabled='false' and (@text=${literal(text)} or @content-desc=${literal(text)} or .//*[@text=${literal(text)} or @content-desc=${literal(text)}])]`)).length, { message: `${text} must be disabled on Android` }).toBeGreaterThan(0);
   }
   async signIn(actor: Actor) {
     await this.fill('E-mail', actor.user.email);

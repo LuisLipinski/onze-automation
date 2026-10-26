@@ -28,6 +28,8 @@ jobs:
   apk:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    outputs:
+      artifact_name: onze-emulator-v1-${{ steps.mobile.outputs.sha }}
     env:
       CI: true
       EXPO_PUBLIC_API_URL: http://10.0.2.2:8080
@@ -51,13 +53,19 @@ jobs:
         with:
           path: .runtime/apk
           key: onze-emulator-apk-v1-${{ steps.mobile.outputs.sha }}
-      - name: Reuse initial verified build while warming the cache
-        if: steps.apk-cache.outputs.cache-hit != 'true' && steps.mobile.outputs.sha == '3f026365728e7d583fe08acf23be13000dd59c57'
-        continue-on-error: true
+      - name: Find previous verified build for this source and recipe
+        if: steps.apk-cache.outputs.cache-hit != 'true'
+        id: previous
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          EMULATOR_ARTIFACT_NAME: onze-emulator-v1-${{ steps.mobile.outputs.sha }}
+        run: node scripts/find-emulator-apk.mjs
+      - name: Download previous verified emulator build
+        if: steps.previous.outputs.run_id
         uses: actions/download-artifact@v6
         with:
-          name: isolated-emulator-apk
-          run-id: 40381597109
+          name: onze-emulator-v1-${{ steps.mobile.outputs.sha }}
+          run-id: ${{ steps.previous.outputs.run_id }}
           github-token: ${{ github.token }}
           path: .runtime/apk
       - name: Check existing APK source and checksum
@@ -112,7 +120,7 @@ jobs:
           git -C mobile-source rev-parse HEAD > .runtime/apk/mobile-revision.txt
       - uses: actions/upload-artifact@v6
         with:
-          name: isolated-emulator-apk
+          name: onze-emulator-v1-${{ steps.mobile.outputs.sha }}
           include-hidden-files: true
           path: .runtime/apk/
           retention-days: 7
@@ -179,7 +187,7 @@ jobs:
           npm run frontend:contract
       - uses: actions/download-artifact@v6
         with:
-          name: isolated-emulator-apk
+          name: ${{ needs.apk.outputs.artifact_name }}
           path: .runtime/apk
       - name: Verify emulator APK matches checked-out mobile source
         run: |

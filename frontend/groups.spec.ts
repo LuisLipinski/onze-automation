@@ -76,6 +76,7 @@ test('[UI-G05] promoção começa sem funções e permissões são salvas indivi
   await ui.tap('Promover');
   await ui.has('Promover para administrador?');
   await ui.tap('Promover');
+  await expect.poll(async () => (await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(g.owner) }))).find((m: any) => m.userId === g.members[0].user.id).role).toBe('ADMIN');
   let members = await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(g.owner) }));
   expect(members.find((m: any) => m.userId === g.members[0].user.id)).toMatchObject({ role: 'ADMIN', permissions: [] });
   await ui.tap('Editar permissões');

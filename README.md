@@ -56,7 +56,7 @@ A matriz em [frontend-flows.json](coverage/frontend-flows.json) declara 63 cená
 
 O workflow **Android UI Automation** compila o mobile `development` para x86_64, usando somente `http://10.0.2.2:8080`. A liberação de HTTP fica no manifesto Android gerado desse build isolado. O APK de emulador não é uma versão para distribuição. O código do mobile e o APK arm64 para os usuários permanecem os mesmos.
 
-Cada uma das quatro partes executa seu próprio emulador Android 36 e sua própria API/PostgreSQL descartável. Os dados são preparados pela API e as ações verificadas ocorrem na interface; consultas à API conferem persistência. O login é feito pelo formulário real e o armazenamento do aplicativo é limpo a cada cenário. Código de recuperação vem do capturador de e-mail do harness.
+Cada uma das quatro partes executa seu próprio emulador Android 36 e sua própria API/PostgreSQL descartável. Os dados são preparados pela API e as ações verificadas ocorrem na interface; consultas à API conferem persistência. O login é feito pelo formulário real e o armazenamento do aplicativo é limpo a cada cenário. O pedido nativo de notificações é recusado na interface para não registrar o emulador no Expo/FCM real. Código de recuperação vem do capturador de e-mail do harness.
 
 ```bash
 npm ci
