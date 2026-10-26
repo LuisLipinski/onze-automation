@@ -27,6 +27,7 @@ public class AutomationApplication {
     static final List<Map<String, String>> EMAILS = new CopyOnWriteArrayList<>();
     static final List<Object> PUSHES = new CopyOnWriteArrayList<>();
     static final Queue<Map<String, Object>> EXPO_REPLIES = new ConcurrentLinkedQueue<>();
+    static final AtomicReference<Map<String, Object>> EXPO_DEFAULT_REPLY = new AtomicReference<>();
     static volatile boolean failMedia;
     static volatile boolean failEmail;
 
@@ -52,6 +53,7 @@ public class AutomationApplication {
                     Object payload = json.readValue(exchange.getRequestBody().readAllBytes(), Object.class);
                     PUSHES.add(payload);
                     Map<String, Object> reply = EXPO_REPLIES.poll();
+                    if (reply == null) reply = EXPO_DEFAULT_REPLY.get();
                     int status = reply == null ? 200 : ((Number) reply.getOrDefault("status", 200)).intValue();
                     Object body = reply == null ? Map.of("data", List.of(Map.of("status", "ok", "id", UUID.randomUUID().toString())))
                             : reply.getOrDefault("body", Map.of("data", List.of(Map.of("status", "ok"))));
@@ -69,7 +71,7 @@ public class AutomationApplication {
                     case "/reset" -> {
                         List<String> tables = db.queryForList("select tablename from pg_tables where schemaname='public' and tablename <> 'flyway_schema_history'", String.class);
                         if (!tables.isEmpty()) db.execute("truncate table " + tables.stream().map(n -> "\"" + n.replace("\"", "\"\"") + "\"").collect(java.util.stream.Collectors.joining(",")) + " restart identity cascade");
-                        NOW.set(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS)); EMAILS.clear(); PUSHES.clear(); EXPO_REPLIES.clear();
+                        NOW.set(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS)); EMAILS.clear(); PUSHES.clear(); EXPO_REPLIES.clear(); EXPO_DEFAULT_REPLY.set(null);
                         failMedia = false; failEmail = false;
                         result = Map.of("now", NOW.get().toString());
                     }
@@ -80,6 +82,7 @@ public class AutomationApplication {
                     case "/emails" -> result = List.copyOf(EMAILS);
                     case "/pushes" -> result = List.copyOf(PUSHES);
                     case "/expo-plan" -> { EXPO_REPLIES.add(body); result = Map.of("queued", true); }
+                    case "/expo-default" -> { EXPO_DEFAULT_REPLY.set(body); result = Map.of("configured", true); }
                     case "/boundaries" -> {
                         failMedia = Boolean.TRUE.equals(body.get("failMedia"));
                         failEmail = Boolean.TRUE.equals(body.get("failEmail"));

@@ -116,13 +116,17 @@ test('persistent provider failure reaches FAILED and stops after the bounded ret
   const beforeIds = new Set((await control.call('/outbox')).map((j: any) => j.id));
   await body(await request.post(`/api/matches/${g.match.id}/payments/${player.user.id}/reminder`, { headers: auth(g.owner) }));
   const jobId = (await control.call('/outbox')).find((j: any) => !beforeIds.has(j.id) && j.notification_type === 'PAYMENT_REMINDER' && j.recipient_user_id === player.user.id).id;
+  // A persistent outage also covers any transparent retries made by the HTTP client.
+  await control.call('/expo-default', { status: 503, body: { errors: [{ message: 'unavailable' }] } });
   for (let attempt = 1; attempt <= 5; attempt++) {
-    await control.call('/expo-plan', { status: 503, body: { errors: [{ message: 'unavailable' }] } });
     await control.process();
     const job = (await control.call('/outbox')).find((j: any) => j.id === jobId);
     expect(job).toMatchObject({ attempts: attempt, status: attempt === 5 ? 'FAILED' : 'PENDING' });
     await control.advance(2 ** (attempt - 1) * 60000 + 1000);
   }
+  const deliveryCount = flatten(await control.call('/pushes')).length;
+  expect(deliveryCount).toBeGreaterThanOrEqual(5);
+  await control.advance(3600000);
   await control.process();
-  expect(flatten(await control.call('/pushes'))).toHaveLength(5);
+  expect(flatten(await control.call('/pushes'))).toHaveLength(deliveryCount);
 });
