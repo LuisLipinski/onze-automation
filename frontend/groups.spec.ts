@@ -1,5 +1,5 @@
 import { test, expect } from './support/test';
-import { auth, body, group, promote, register } from './support/factory';
+import { auth, body, group, promote, readGroup, register } from './support/factory';
 
 test('[UI-G01] cria grupo nas três etapas com dados opcionais', async ({ ui, request }) => {
   const actor = await register(request);
@@ -48,7 +48,9 @@ test('[UI-G03] renova convite somente após confirmação e abre compartilhament
   await ui.tap('Cancelar');
   await ui.sees(g.invitation.code);
   await ui.tap('Gerar novo convite');
+  await ui.has('Gerar novo convite?');
   await ui.tap('Gerar novo convite');
+  await expect.poll(async () => (await body(await request.post(`/api/groups/${g.id}/invite`, { headers: auth(g.owner) }))).code).not.toBe(g.invitation.code);
   const invitation = await body(await request.post(`/api/groups/${g.id}/invite`, { headers: auth(g.owner) }));
   expect(invitation.code).not.toBe(g.invitation.code);
   await ui.sees(invitation.code);
@@ -89,6 +91,7 @@ test('[UI-G05] promoção começa sem funções e permissões são salvas indivi
   expect(all.find((m: any) => m.userId === g.members[0].user.id).permissions).toHaveLength(labels.length);
   for (const label of labels.slice(1)) await ui.tap(label);
   await ui.tap('Salvar permissões');
+  await expect.poll(async () => (await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(g.owner) }))).find((m: any) => m.userId === g.members[0].user.id).permissions).toEqual(['ADD_MEMBERS']);
   members = await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(g.owner) }));
   expect(members.find((m: any) => m.userId === g.members[0].user.id).permissions).toEqual(['ADD_MEMBERS']);
 });
@@ -115,7 +118,7 @@ test('[UI-G07] principal transfere cargo com confirmação', async ({ ui, reques
   await ui.tap('Cancelar');
   await ui.tap('Tornar principal');
   await ui.tap('Transferir cargo');
-  await expect.poll(async () => (await body(await request.get(`/api/groups/${g.id}`, { headers: auth(g.members[0]) }))).role).toBe('PRIMARY_ADMIN');
+  await expect.poll(async () => (await readGroup(request, g.id, g.members[0]))?.role).toBe('PRIMARY_ADMIN');
   await ui.sees('Administrador principal');
 });
 
@@ -142,16 +145,16 @@ test('[UI-G09] configura grupo e confirmação de exclusão permite cancelar', a
   await ui.fill('Ex.: Curitiba', 'Londrina');
   await ui.tap('Salvar configurações');
   await ui.has('Configurações salvas');
-  expect((await body(await request.get(`/api/groups/${g.id}`, { headers: auth(g.owner) }))).city).toBe('Londrina');
+  expect((await readGroup(request, g.id, g.owner)).city).toBe('Londrina');
   await ui.tap('Voltar');
   await ui.open('group-settings', { groupId: g.id });
   await ui.tap('Excluir grupo');
   await ui.has('Excluir este grupo?');
   await ui.tap('Manter grupo');
-  expect((await request.get(`/api/groups/${g.id}`, { headers: auth(g.owner) })).status()).toBe(200);
+  expect(await readGroup(request, g.id, g.owner)).toBeTruthy();
   await ui.tap('Excluir grupo');
   await ui.tap('Excluir grupo');
-  await expect.poll(async () => (await request.get(`/api/groups/${g.id}`, { headers: auth(g.owner) })).status()).toBe(404);
+  await expect.poll(async () => readGroup(request, g.id, g.owner)).toBeUndefined();
   await ui.reset();
   await ui.signIn(g.members[0]);
   await ui.sees('Grupo excluído', true);

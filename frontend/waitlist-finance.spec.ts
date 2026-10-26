@@ -14,6 +14,7 @@ test('[UI-W01] vagas de goleiro levam jogador de linha para fila e permitem sair
   await ui.sees('2 vagas reservadas', true);
   expect((await getMatch(request, match.id, g.members[0])).myAttendance).toBe('WAITLISTED');
   await ui.tap('Sair da fila');
+  await ui.has('Sair da lista de espera?');
   await ui.tap('Sair da fila');
   await expect.poll(async () => (await getMatch(request, match.id, g.members[0])).myAttendance).toBe('NOT_GOING');
   await ui.disabled('Não vou');
@@ -60,7 +61,7 @@ test('[UI-W04] goleiro de aluguel ocupa vaga reservada e pode ser removido', asy
   const match = await createMatch(request, control, g.id, g.owner);
   await ui.login(g.owner);
   await ui.open('match', { matchId: match.id });
-  await ui.tap('+ Adicionar goleiro de aluguel');
+  await ui.tap('Adicionar goleiro de aluguel', true);
   await ui.fill('Ex.: Carlos', 'Aluguel Android');
   await ui.tap('Adicionar');
   await ui.sees('Aluguel Android — Goleiro de aluguel');

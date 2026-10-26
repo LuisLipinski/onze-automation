@@ -12,6 +12,11 @@ test('[UI-M01] calendário e relógio são nativos e jogo é criado com convite'
   await ui.tap('Horário limite de inscrição:', true);
   await ui.hasId('android:id/timePicker');
   await ui.tapId('android:id/button2');
+  await ui.tap('Horário do jogo:', true);
+  await ui.tapId('android:id/hours');
+  await ui.tap('14');
+  await ui.tap('15');
+  await ui.tapId('android:id/button1');
   await ui.fill('Ex.: Arena dos Amigos', 'Arena Android');
   await ui.tap('Marcar jogo');
   await ui.has('Compartilhar este jogo?');
@@ -21,6 +26,7 @@ test('[UI-M01] calendário e relógio são nativos e jogo é criado com convite'
   const matches = await body(await request.get(`/api/groups/${g.id}/matches`, { headers: auth(g.owner) }));
   expect(matches).toHaveLength(1);
   expect(matches[0]).toMatchObject({ venue: 'Arena Android', requiredGoalkeepers: 2, maxPlayers: 14 });
+  expect(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' }).format(new Date(matches[0].startsAt))).toBe('14:15');
 });
 
 test('[UI-M02] formulário valida local e opções de cobrança e tempos', async ({ ui, request }) => {
@@ -112,7 +118,7 @@ test('[UI-M07] cancelar ocorrência semanal preserva as demais', async ({ ui, re
   await expect.poll(async () => (await getMatch(request, match.id, g.owner)).status).toBe('CANCELLED');
   const matches = await body(await request.get(`/api/groups/${g.id}/matches`, { headers: auth(g.owner) }));
   expect(matches.filter((m: any) => m.status === 'SCHEDULED')).toHaveLength(3);
-  await ui.sees('Cancelado', true);
+  await ui.sees('Jogo cancelado');
 });
 
 test('[UI-M08] falta de mínimo oferece manter jogo e extensão nativa do prazo', async ({ ui, request, control }) => {

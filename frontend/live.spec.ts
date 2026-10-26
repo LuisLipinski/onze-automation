@@ -70,7 +70,8 @@ test('[UI-L02] gol com assistência atualiza placar e eventos', async ({ ui, req
   await ui.tap('Aumentar placar de Preto');
   await ui.has('Registrar gol');
   await ui.tap(scorer.displayName);
-  await ui.tap(assist.displayName);
+  await ui.sees('Assistência (opcional)');
+  await ui.tapLast(assist.displayName);
   await ui.tap('Salvar gol');
   await expect.poll(async () => (await live(request, g.match.id, g.owner)).goalEvents.length).toBe(1);
   const state = await live(request, g.match.id, g.owner);
@@ -91,7 +92,7 @@ test('[UI-L03] gol contra é atribuído ao adversário sem chute automático', a
   await expect.poll(async () => (await live(request, g.match.id, g.owner)).goalEvents.length).toBe(1);
   const state = await live(request, g.match.id, g.owner);
   expect(state.goalEvents[0]).toMatchObject({ scorerAssignmentId: opponent.id, ownGoal: true, sideNumber: 1, shotRecorded: false });
-  await ui.sees('contra', true);
+  await ui.sees('GOL CONTRA');
 });
 
 test('[UI-L04] exclusão confirmada do gol corrige placar e estatísticas', async ({ ui, request, control }) => {
@@ -139,6 +140,8 @@ test('[UI-L06] falta seleciona vítima do lado clicado e autor adversário', asy
   await ui.tap('Registrar');
   await expect.poll(async () => (await live(request, g.match.id, g.owner)).foulEvents.length).toBe(1);
   expect((await live(request, g.match.id, g.owner)).foulEvents[0]).toMatchObject({ victimAssignmentId: victim.id, offenderAssignmentId: offender.id, penalty: false });
+  await ui.sees('Finalizar jogo');
+  await ui.absent('Linha do tempo');
   await ui.absent('fez falta', true);
 });
 
@@ -178,13 +181,13 @@ test('[UI-L08] pênalti perdido não soma gol e exclusão desfaz a cobrança vin
   await ui.tap('Continuar');
   await ui.tap('Não, perdeu');
   await ui.tap('Salvar resultado');
-  await ui.sees('Pênalti perdido', true);
+  await ui.sees('PÊNALTI PERDIDO', true);
   const before = await live(request, g.match.id, g.owner);
   expect(before.goalEvents).toHaveLength(0);
   await ui.tap('Remover evento da linha do tempo');
   await ui.tap('Remover');
   await expect.poll(async () => (await live(request, g.match.id, g.owner)).foulEvents.length).toBe(0);
-  await ui.absent('Pênalti perdido', true);
+  await ui.absent('PÊNALTI PERDIDO', true);
 });
 
 test('[UI-L09] segundo amarelo expulsa e impede selecionar jogador para gol', async ({ ui, request, control }) => {
@@ -215,6 +218,8 @@ test('[UI-L10] tempos respeitam relógio e administrador inicia segundo tempo', 
   await control.advance(60_000);
   await ui.open('home');
   await ui.open('live-match', { matchId: g.match.id });
+  await ui.scroll('down');
+  await ui.has('Encerrar 1º tempo', false, 90_000);
   await ui.tap('Encerrar 1º tempo');
   await ui.sees('Iniciar 2º tempo');
   await ui.tap('Iniciar 2º tempo');
@@ -303,6 +308,8 @@ test('[UI-L16] empate abre prorrogação e administrador inicia o tempo extra', 
   await control.advance(60_000);
   await ui.login(g.owner);
   await ui.open('live-match', { matchId: g.match.id });
+  await ui.scroll('down');
+  await ui.has('Encerrar 1º tempo', false, 90_000);
   await ui.tap('Encerrar 1º tempo');
   await ui.tap('Iniciar 1º tempo da prorrogação');
   await expect.poll(async () => (await live(request, g.match.id, g.owner)).periods.at(-1).periodType).toBe('OVERTIME');

@@ -54,7 +54,7 @@ test('[UI-S03] histórico pessoal abre jogo encerrado e preserva equipe do jogad
   await ui.open('player-statistics', { groupId: g.id, userId: g.owner.user.id });
   await ui.screen('player-statistics', 'SEU HISTÓRICO');
   await ui.sees('Arena QA', true);
-  await ui.tap('Ver jogo');
+  await ui.tap('Ver jogo', true);
   await ui.has('Jogo ao vivo');
   await ui.sees('FINALIZADA');
 });

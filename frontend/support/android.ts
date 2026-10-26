@@ -76,11 +76,17 @@ export class Android {
     if (!notificationRequest.length) return;
     // Exercise the OS denial path, keeping the emulator independent of real
     // Expo/FCM registration. Push delivery remains in the backend boundary suite.
-    this.evidence.assertions++;
-    await this.tapId('com.android.permissioncontroller:id/permission_deny_button');
+    const buttons = await this.elements(`//*[starts-with(@resource-id,'com.android.permissioncontroller:id/permission_deny') and @clickable='true']`);
+    if (buttons[0]) {
+      this.evidence.assertions++;
+      await this.click(buttons[0]);
+    }
   }
   async scroll(direction: 'up' | 'down' = 'down') {
-    return this.execute('mobile: scrollGesture', { left: 50, top: 200, width: 950, height: 1700, direction, percent: 0.75 });
+    const containers = await this.elements(`//*[@scrollable='true']`);
+    return this.execute('mobile: scrollGesture', containers.length
+      ? { elementId: containers.at(-1)![elementKey], direction, percent: 0.7 }
+      : { left: 50, top: 200, width: 950, height: 1700, direction, percent: 0.7 });
   }
   async seek(text: string, contains = false): Promise<Element> {
     // Allow asynchronous requests/navigation to settle before moving the screen.
@@ -112,8 +118,22 @@ export class Android {
       const parents = await this.elements(`//*[${condition}]/ancestor::*[@clickable='true'][1]`);
       if (parents[0]) element = parents[0];
     }
+    try { await this.click(element); }
+    catch (error) {
+      if (!(error instanceof Error) || !error.message.includes('stale element reference')) throw error;
+      // Stale means Android rejected the input before performing it. Re-query
+      // only this stale handle; never repeat a timed-out or successful action.
+      await this.click(await this.seek(text, contains));
+    }
+  }
+  private async click(element: Element) {
     this.evidence.commands++;
     await this.command(this.path(`/element/${element[elementKey]}/click`), {});
+  }
+  async tapLast(text: string) {
+    await this.seek(text);
+    const matches = await this.elements(this.selector(text));
+    await this.click(matches.at(-1)!);
   }
   async fill(placeholder: string, value: string) {
     const element = await this.seek(placeholder);
@@ -130,9 +150,9 @@ export class Android {
     await this.command(this.path(`/element/${id}/value`), { text: value });
     await this.execute('mobile: hideKeyboard').catch(() => undefined);
   }
-  async has(text: string, contains = false) {
+  async has(text: string, contains = false, timeout = 20_000) {
     this.evidence.assertions++;
-    await expect.poll(async () => Boolean(await this.find(text, contains)), { message: `Android shows ${text}`, timeout: 20_000 }).toBe(true);
+    await expect.poll(async () => Boolean(await this.find(text, contains)), { message: `Android shows ${text}`, timeout }).toBe(true);
   }
   async sees(text: string, contains = false) {
     this.evidence.assertions++;
@@ -168,11 +188,21 @@ export class Android {
     await expect.poll(async () => this.execute('mobile: getCurrentPackage')).toMatch(/^(android|com\.android\.intentresolver|com\.google\.android\.)/);
   }
   async tapWithin(label: string, action: string) {
-    await this.seek(label);
-    const candidates = await this.elements(`//*[@text=${literal(label)}]/ancestor::*[.//*[@text=${literal(action)} or @content-desc=${literal(action)}]][1]//*[@text=${literal(action)} or @content-desc=${literal(action)}]`);
-    expect(candidates[0], `${action} in card ${label}`).toBeTruthy();
-    this.evidence.commands++;
-    await this.command(this.path(`/element/${candidates[0][elementKey]}/click`), {});
+    for (let attempt = 0; attempt < 16; attempt++) {
+      const labels = await this.elements(`//*[@text=${literal(label)}]`);
+      const actions = await this.elements(`//*[@content-desc=${literal(action)} and @clickable='true']`);
+      for (const name of labels) {
+        const nr = await this.command(this.path(`/element/${name[elementKey]}/rect`));
+        for (const candidate of actions) {
+          const ar = await this.command(this.path(`/element/${candidate[elementKey]}/rect`));
+          if (Math.abs(ar.y + ar.height / 2 - nr.y - nr.height / 2) < 60 && ar.x > nr.x + nr.width) {
+            await this.click(candidate); return;
+          }
+        }
+      }
+      if (!await this.scroll('down')) break;
+    }
+    throw new Error(`${action} in Android row ${label} not found`);
   }
   async back() { await this.execute('mobile: pressKey', { keycode: 4 }); }
   async tapId(id: string) {

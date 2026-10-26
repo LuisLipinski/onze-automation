@@ -51,7 +51,7 @@ test('[UI-A03] recuperação solicita código e altera senha pela interface', as
 
 test('[UI-A04] recuperação recusa código incorreto sem alterar senha', async ({ ui, request, control }) => {
   const actor = await register(request);
-  await body(await request.post('/api/auth/password-reset/request', { data: { email: actor.user.email } }));
+  await body(await request.post('/api/auth/password-reset/request', { data: { email: actor.user.email } }), 202);
   await ui.open('reset-password', { email: actor.user.email });
   const code = (await control.call('/emails'))[0].code;
   const invalid = String((Number(code[0]) + 1) % 10) + code.slice(1);
