@@ -8,6 +8,7 @@ Seis operações são públicas; as outras 94 devem rejeitar requisições anôn
 O gate exige um cenário aprovado com resposta 2xx para cada operação, a rejeição anônima de todas as operações protegidas e nenhum teste ignorado/falho.
 Rotas específicas têm prioridade sobre parâmetros, evitando contar `/api/matches/live` como uma chamada a `/api/matches/{matchId}`.
 Alterar/adicionar/remover um controller sem atualizar o inventário bloqueia o CI.
+Dois cenários também conferem os mappings realmente registrados pelo Spring: 95 com ferramentas desligadas e 100 com a liberação explícita. Isso detecta inclusive uma operação nova que o parser do código-fonte ainda não reconheça.
 
 | Domínio | Fluxos e efeitos verificados | Cenários |
 |---|---|---|

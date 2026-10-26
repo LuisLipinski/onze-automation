@@ -97,7 +97,8 @@ public class AutomationApplication {
                     }
                     case "/unlock-login" -> {
                         UUID userId = UUID.fromString(body.get("userId").toString());
-                        int changed = db.update("update users set login_blocked_until = now() - interval '1 second' where id = ?", userId);
+                        int changed = db.update("update users set login_blocked_until = ? where id = ?",
+                                java.sql.Timestamp.from(NOW.get().minusSeconds(1)), userId);
                         result = Map.of("changed", changed);
                     }
                     case "/process" -> {
@@ -108,8 +109,15 @@ public class AutomationApplication {
                         int deleted = app.getBean(GroupDeletionNotificationProcessor.class).processPending();
                         result = Map.of("opened", opened, "notifications", notifications, "deletions", deleted);
                     }
-                    case "/outbox" -> result = db.queryForList("select notification_type, status, attempts, recipient_user_id::text, match_id::text, last_error from match_notification_jobs order by created_at");
+                    case "/outbox" -> result = db.queryForList("select id::text, dedupe_key, notification_type, status, attempts, recipient_user_id::text, match_id::text, last_error from match_notification_jobs order by created_at");
                     case "/devices" -> result = db.queryForList("select user_id::text, expo_push_token, active from push_devices");
+                    case "/routes" -> result = app.getBean("requestMappingHandlerMapping",
+                            org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping.class)
+                            .getHandlerMethods().entrySet().stream()
+                            .filter(entry -> entry.getValue().getBeanType().getPackageName().startsWith("com.onze.api"))
+                            .flatMap(entry -> entry.getKey().getMethodsCondition().getMethods().stream()
+                                    .flatMap(method -> entry.getKey().getPatternValues().stream().map(pattern -> method.name() + " " + pattern)))
+                            .sorted().toList();
                     default -> { respond(exchange, json, 404, Map.of("error", "unknown control operation")); return; }
                 }
                 respond(exchange, json, 200, result);

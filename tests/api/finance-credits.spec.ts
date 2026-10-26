@@ -152,7 +152,7 @@ test('credit reserved for unconfirmed attendance is released at signup expiratio
   expect((await getMatch(request, next.id, player))).toMatchObject({ myAttendance: 'PENDING', myCreditAppliedAmount: 25, myCreditAllocationStatus: 'RESERVED', goingCount: 0 });
   await control.at(new Date(Date.parse(next.signupDeadline) + 1000).toISOString());
   await control.process();
-  expect((await getMatch(request, next.id, player)).myCreditAppliedAmount).toBe(0);
+  expect((await getMatch(request, next.id, player))).toMatchObject({ myAttendance: 'NOT_GOING', myCreditAllocationStatus: null, canReportPayment: false });
   const credits = await body(await request.get(`/api/groups/${g.id}/credits`, { headers: auth(player) }));
   expect(credits[0]).toMatchObject({ availableAmount: 25, allocatedAmount: 0 });
 });

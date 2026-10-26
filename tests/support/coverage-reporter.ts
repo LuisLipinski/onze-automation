@@ -1,5 +1,5 @@
 import type { FullResult, Reporter, TestCase, TestResult } from '@playwright/test/reporter';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import type { HttpObservation } from './test';
 
 type Endpoint = { id: string; method: string; path: string; authentication: boolean; optional: boolean };
@@ -23,7 +23,8 @@ export default class CoverageReporter implements Reporter {
     });
     const missing = coverage.filter(e => !e.positive || e.authentication && !e.unauthorized);
     mkdirSync('coverage/results', { recursive: true });
-    const summary = { generatedAt: new Date().toISOString(), result: result.status, total: coverage.length, positive: coverage.filter(e => e.positive).length, authentication: coverage.filter(e => e.authentication).length, unauthorized: coverage.filter(e => e.authentication && e.unauthorized).length, scenarios: this.scenarios, endpoints: coverage };
+    const backend = existsSync('.runtime/backend-source.json') ? JSON.parse(readFileSync('.runtime/backend-source.json', 'utf8')) : null;
+    const summary = { generatedAt: new Date().toISOString(), backend, result: result.status, total: coverage.length, positive: coverage.filter(e => e.positive).length, authentication: coverage.filter(e => e.authentication).length, unauthorized: coverage.filter(e => e.authentication && e.unauthorized).length, scenarios: this.scenarios, endpoints: coverage };
     writeFileSync('coverage/results/backend-coverage.json', JSON.stringify(summary, null, 2));
     writeFileSync('coverage/results/backend-coverage.md', '# Backend HTTP coverage\n\n' + `${summary.positive}/${summary.total} operations with successful scenarios; ${summary.unauthorized}/${summary.authentication} protected operations reject anonymous requests.\n\n` + '| Operation | Positive | Anonymous rejected |\n|---|---|---|\n' + coverage.map(e => `| ${e.id} | ${e.positive ? 'PASS' : 'MISSING'} | ${!e.authentication ? 'PUBLIC' : e.unauthorized ? 'PASS' : 'MISSING'} |`).join('\n') + '\n');
     console.log(`Backend HTTP coverage: ${summary.positive}/${summary.total}; authentication ${summary.unauthorized}/${summary.authentication}`);

@@ -1,5 +1,11 @@
 import { test, expect } from '../support/test';
 import { group, createMatch, auth, body } from '../support/factory';
+import { readFileSync } from 'node:fs';
+
+test('Spring registers all 100 inventoried operations when test tools are explicitly enabled', async ({ control }) => {
+  const inventory = JSON.parse(readFileSync('coverage/backend-endpoints.json', 'utf8')) as { id: string }[];
+  expect(await control.call('/routes')).toEqual(inventory.map(e => e.id).sort());
+});
 
 test('explicitly enabled tools regenerate players, apply scenarios and add/remove attendance', async ({ request, control }) => {
   const g = await group(request, 1);

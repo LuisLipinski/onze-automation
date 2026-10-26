@@ -10,9 +10,10 @@ test('payment reminders deduplicate, have correct recipient/route and become obs
   await control.process();
   await body(await request.put('/api/devices/push-token', { headers: auth(player), data: { token: token(player.user.id) } }), 204);
   const path = `/api/matches/${g.match.id}/payments/${player.user.id}/reminder`;
+  const beforeIds = new Set((await control.call('/outbox')).map((j: any) => j.id));
   await body(await request.post(path, { headers: auth(g.owner) }));
   await body(await request.post(path, { headers: auth(g.owner) }));
-  let jobs = (await control.call('/outbox')).filter((j: any) => j.notification_type === 'PAYMENT_REMINDER' && j.recipient_user_id === player.user.id);
+  let jobs = (await control.call('/outbox')).filter((j: any) => !beforeIds.has(j.id) && j.notification_type === 'PAYMENT_REMINDER' && j.recipient_user_id === player.user.id);
   expect(jobs).toHaveLength(1);
   await control.process();
   let messages = flatten(await control.call('/pushes')).filter(m => m.data.notificationType === 'PAYMENT_REMINDER');
@@ -32,14 +33,16 @@ test('Expo transport failure retries and rejected device is deactivated without 
   await control.process();
   await body(await request.put('/api/devices/push-token', { headers: auth(player), data: { token: token(player.user.id) } }), 204);
   const path = `/api/matches/${g.match.id}/payments/${player.user.id}/reminder`;
+  const beforeIds = new Set((await control.call('/outbox')).map((j: any) => j.id));
   await body(await request.post(path, { headers: auth(g.owner) }));
+  const jobId = (await control.call('/outbox')).find((j: any) => !beforeIds.has(j.id) && j.notification_type === 'PAYMENT_REMINDER' && j.recipient_user_id === player.user.id).id;
   await control.call('/expo-plan', { status: 500, body: { errors: [{ code: 'INTERNAL', message: 'retry' }] } });
   await control.process();
-  let job = (await control.call('/outbox')).find((j: any) => j.notification_type === 'PAYMENT_REMINDER' && j.recipient_user_id === player.user.id);
+  let job = (await control.call('/outbox')).find((j: any) => j.id === jobId);
   expect(job).toMatchObject({ status: 'PENDING', attempts: 1 });
   await control.advance(2 * 60000);
   await control.process();
-  job = (await control.call('/outbox')).find((j: any) => j.notification_type === 'PAYMENT_REMINDER' && j.recipient_user_id === player.user.id);
+  job = (await control.call('/outbox')).find((j: any) => j.id === jobId);
   expect(job.status).toBe('SENT');
   expect(flatten(await control.call('/pushes'))).toHaveLength(2);
   await control.advance(6 * 60000);
@@ -110,11 +113,13 @@ test('persistent provider failure reaches FAILED and stops after the bounded ret
   const player = g.members[1];
   await control.process();
   await body(await request.put('/api/devices/push-token', { headers: auth(player), data: { token: token(player.user.id) } }), 204);
+  const beforeIds = new Set((await control.call('/outbox')).map((j: any) => j.id));
   await body(await request.post(`/api/matches/${g.match.id}/payments/${player.user.id}/reminder`, { headers: auth(g.owner) }));
+  const jobId = (await control.call('/outbox')).find((j: any) => !beforeIds.has(j.id) && j.notification_type === 'PAYMENT_REMINDER' && j.recipient_user_id === player.user.id).id;
   for (let attempt = 1; attempt <= 5; attempt++) {
     await control.call('/expo-plan', { status: 503, body: { errors: [{ message: 'unavailable' }] } });
     await control.process();
-    const job = (await control.call('/outbox')).find((j: any) => j.notification_type === 'PAYMENT_REMINDER' && j.recipient_user_id === player.user.id);
+    const job = (await control.call('/outbox')).find((j: any) => j.id === jobId);
     expect(job).toMatchObject({ attempts: attempt, status: attempt === 5 ? 'FAILED' : 'PENDING' });
     await control.advance(2 ** (attempt - 1) * 60000 + 1000);
   }

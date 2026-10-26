@@ -80,6 +80,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: backend-automation-report
+          include-hidden-files: true
           path: |
             playwright-report/
             test-results/

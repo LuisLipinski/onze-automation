@@ -79,6 +79,8 @@ test('membership positions normalize goalkeeper volunteering and reject conflict
   const member = g.members[0];
   const actual = await profile(request, g.id, member, 'GOALKEEPER', 'DEFENDER', true);
   expect(actual).toMatchObject({ primaryPosition: 'GOALKEEPER', secondaryPosition: 'DEFENDER', canPlayGoalkeeper: false, complete: true });
+  const administrative = await body(await request.get(`/api/groups/${g.id}/members/${member.membershipId}/sports-profile`, { headers: auth(g.owner) }));
+  expect(administrative).toEqual(actual);
   const path = `/api/groups/${g.id}/members/me/sports-profile`;
   for (const positions of [[], ['MIDFIELDER','MIDFIELDER'], ['MIDFIELDER','DEFENDER','ATTACKER']]) {
     expect((await request.put(path, { headers: auth(member), data: { positions, canPlayGoalkeeper: false, dominantFoot: 'RIGHT' } })).status()).toBe(400);

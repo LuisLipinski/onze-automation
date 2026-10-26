@@ -14,15 +14,19 @@ test('member of another group cannot read or mutate match domains', async ({ req
   expect((await request.get(`/api/groups/${g.id}/matches`, { headers: auth(foreign) })).status()).toBe(403);
 });
 
-test('foreign event/assignment/guest identifiers cannot be used in an authorized different match', async ({ request, control }) => {
+test('foreign goal/card/assignment identifiers cannot be used in an authorized different match', async ({ request, control }) => {
   const first = await liveMatch(request, control);
   const second = await liveMatch(request, control);
   const player = first.assignments[0];
   const base = `/api/matches/${first.match.id}/live`;
   const goal = await body(await request.post(base + '/goals', { headers: auth(first.owner), data: { scorerAssignmentId: player.id, penalty: false } }), 201);
   const card = await body(await request.post(base + '/cards', { headers: auth(first.owner), data: { playerAssignmentId: player.id, cardType: 'YELLOW' } }), 201);
-  expect((await request.delete(`/api/matches/${second.match.id}/live/goals/${goal.event.id}`, { headers: auth(second.owner) })).status()).toBe(404);
-  expect((await request.delete(`/api/matches/${second.match.id}/live/cards/${card.event.id}`, { headers: auth(second.owner) })).status()).toBe(404);
+  const rejectedGoal = await request.delete(`/api/matches/${second.match.id}/live/goals/${goal.event.id}`, { headers: auth(second.owner) });
+  expect(rejectedGoal.status()).toBe(400);
+  expect((await rejectedGoal.json()).code).toBe('INVALID_GOAL_EVENT');
+  const rejectedCard = await request.delete(`/api/matches/${second.match.id}/live/cards/${card.event.id}`, { headers: auth(second.owner) });
+  expect(rejectedCard.status()).toBe(400);
+  expect((await rejectedCard.json()).code).toBe('INVALID_CARD_EVENT');
   expect((await request.put(`/api/matches/${second.match.id}/teams/assignments/${player.id}`, { headers: auth(second.owner), data: { teamNumber: 1, assignedRole: 'PIVOT' } })).status()).toBe(404);
   const current = await body(await request.get(base, { headers: auth(first.owner) }));
   expect(current.goalEvents).toHaveLength(1);
