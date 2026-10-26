@@ -13,7 +13,8 @@ const covered = new Set(valid.map(test => test.id));
 const screens = new Set(valid.flatMap(test => test.evidence.screens));
 const missing = catalog.flows.filter(flow => !covered.has(flow.id));
 const missingRoutes = catalog.routes.filter(route => !screens.has(route));
-const backendRevisions = new Set(runs.map(run => run.backend.revision ?? run.backend.sha));
+if (runs.some(run => !/^[a-f0-9]{40}$/.test(run.backend.sha) || !/^[a-f0-9]{40}$/.test(run.mobile.revision))) throw new Error('Missing exact API/mobile source revision');
+const backendRevisions = new Set(runs.map(run => run.backend.sha));
 const mobileRevisions = new Set(runs.map(run => run.mobile.revision));
 if (backendRevisions.size !== 1 || mobileRevisions.size !== 1) throw new Error('Shards exercised different source revisions');
 if (cases.length !== catalog.flows.length || new Set(cases.map(test => test.id)).size !== cases.length || valid.length !== cases.length || missing.length || missingRoutes.length) {

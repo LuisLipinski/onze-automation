@@ -1,5 +1,5 @@
 import { test, expect } from './support/test';
-import { auth, body, group, liveMatch } from '../tests/support/factory';
+import { auth, body, group, liveMatch } from './support/factory';
 
 test('[UI-S01] rankings mostram todas as métricas e critérios de desempate', async ({ ui, request, control }) => {
   const g = await liveMatch(request, control);

@@ -9,7 +9,6 @@ export default defineConfig({
   fullyParallel: true,
   workers: 1,
   retries: 0,
-  maxFailures: process.env.CI ? 1 : undefined,
   timeout: 180_000,
   expect: { timeout: 15_000 },
   outputDir: 'frontend-results',

@@ -1,5 +1,5 @@
 import { test, expect } from './support/test';
-import { auth, body, group, profile, ratings } from '../tests/support/factory';
+import { auth, body, group, incompleteGroup, profile, ratings } from './support/factory';
 
 test('[UI-P01] perfil esportivo salva posições, goleiro e pé dominante', async ({ ui, request }) => {
   const g = await group(request, 1);
@@ -7,7 +7,7 @@ test('[UI-P01] perfil esportivo salva posições, goleiro e pé dominante', asyn
   await ui.open('sports-profile', { groupId: g.id });
   await ui.screen('sports-profile', 'MEU PERFIL ESPORTIVO');
   await ui.tap('Posição principal', true);
-  await ui.tap('Meio-campo');
+  await ui.tap('Meio-campo', true);
   await ui.tap('Deseja adicionar uma segunda posição?');
   await ui.tap('Segunda posição', true);
   await ui.tap('Atacante');
@@ -48,7 +48,7 @@ test('[UI-P03] administrador avalia habilidades e salva no grupo correto', async
 });
 
 test('[UI-P04] perfil incompleto impede salvar sem posição', async ({ ui, request }) => {
-  const g = await group(request, 0);
+  const g = await incompleteGroup(request, 0);
   await ui.login(g.owner);
   await ui.open('sports-profile', { groupId: g.id });
   await ui.tap('Salvar perfil esportivo');

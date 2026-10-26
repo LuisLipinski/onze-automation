@@ -1,5 +1,5 @@
 import { test, expect } from './support/test';
-import { auth, body, group, promote, register } from '../tests/support/factory';
+import { auth, body, group, promote, register } from './support/factory';
 
 test('[UI-G01] cria grupo nas três etapas com dados opcionais', async ({ ui, request }) => {
   const actor = await register(request);
@@ -155,6 +155,9 @@ test('[UI-G09] configura grupo e confirmação de exclusão permite cancelar', a
   await ui.reset();
   await ui.signIn(g.members[0]);
   await ui.sees('Grupo excluído', true);
+  await ui.tap('Ver meus grupos');
+  await ui.has('Você ainda não participa de um grupo');
+  expect(await body(await request.get('/api/groups/deletion-notices', { headers: auth(g.members[0]) }))).toEqual([]);
 });
 
 test('[UI-G10] membro sai após confirmação e grupo desaparece', async ({ ui, request }) => {

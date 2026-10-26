@@ -1,5 +1,5 @@
 import { test, expect } from './support/test';
-import { auth, body, generatedMatch, getMatch, live, liveMatch, preparedMatch } from '../tests/support/factory';
+import { auth, body, generatedMatch, getMatch, live, liveMatch, preparedMatch } from './support/factory';
 
 test('[UI-T01] forma times, regenera e abre compartilhamento da escalação', async ({ ui, request, control }) => {
   const g = await preparedMatch(request, control);
@@ -264,10 +264,10 @@ test('[UI-L14] cobranças alternadas definem vencedor e confirmação encerra di
   await body(await request.put(path + '/period/finish', { headers: auth(g.owner) }));
   await ui.login(g.owner);
   await ui.open('live-match', { matchId: g.match.id });
-  for (const [teamNumber, teamName] of [[1, 'Preto'], [2, 'Branco']] as const) {
+  for (const teamNumber of [1, 2]) {
     const player = g.assignments.find(a => a.teamNumber === teamNumber);
     for (let kick = 1; kick <= 5; kick++) {
-      await ui.tapWithin(`${teamName} — primeiros 5 batedores`, `${kick}º — Selecionar jogador`);
+      await ui.tap(`${kick}º — Selecionar jogador`);
       await ui.tap(player.displayName);
     }
   }

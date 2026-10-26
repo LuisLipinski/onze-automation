@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { test, expect } from './support/test';
-import { auth, body, group, password, register } from '../tests/support/factory';
+import { auth, body, group, password, register } from './support/factory';
 
 test('[UI-A01] login inválido mostra erro e mantém formulário', async ({ ui, request }) => {
   const actor = await register(request);
@@ -49,11 +49,13 @@ test('[UI-A03] recuperação solicita código e altera senha pela interface', as
   expect((await request.post('/api/auth/login', { data: { email: actor.user.email, password } })).status()).toBe(401);
 });
 
-test('[UI-A04] recuperação recusa código incorreto sem alterar senha', async ({ ui, request }) => {
+test('[UI-A04] recuperação recusa código incorreto sem alterar senha', async ({ ui, request, control }) => {
   const actor = await register(request);
   await body(await request.post('/api/auth/password-reset/request', { data: { email: actor.user.email } }));
   await ui.open('reset-password', { email: actor.user.email });
-  await ui.fill('Código de 6 dígitos', '000000');
+  const code = (await control.call('/emails'))[0].code;
+  const invalid = String((Number(code[0]) + 1) % 10) + code.slice(1);
+  await ui.fill('Código de 6 dígitos', invalid);
   await ui.fill('Nova senha (mínimo 8 caracteres)', 'NovaSenha123!');
   await ui.tap('Alterar senha');
   await ui.has('Código inválido ou expirado. Solicite um novo código.');

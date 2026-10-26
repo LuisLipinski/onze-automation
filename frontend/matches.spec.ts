@@ -1,5 +1,5 @@
 import { test, expect } from './support/test';
-import { auth, body, createMatch, getMatch, going, group, profile } from '../tests/support/factory';
+import { auth, body, createMatch, getMatch, going, group, profile } from './support/factory';
 
 test('[UI-M01] calendário e relógio são nativos e jogo é criado com convite', async ({ ui, request }) => {
   const g = await group(request, 0);
