@@ -1,0 +1,220 @@
+name: Android UI Automation
+
+on:
+  pull_request:
+    branches: [development]
+  push:
+    branches: [development]
+  workflow_dispatch:
+    inputs:
+      mobile_ref:
+        description: Mobile revision to exercise
+        default: development
+        type: string
+      backend_ref:
+        description: Backend revision to exercise
+        default: development
+        type: string
+      scenarios:
+        description: Optional Playwright grep (empty runs the complete matrix)
+        default: ''
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: true
+      EXPO_PUBLIC_API_URL: http://10.0.2.2:8080
+      EXPO_PUBLIC_ENV: development
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: LuisLipinski/onze-mobile
+          ref: ${{ inputs.mobile_ref || 'development' }}
+          path: mobile-source
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.13.0'
+          cache: npm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: platform-tools
+      - run: sdkmanager "platforms;android-36" "build-tools;36.0.0"
+      - run: npm ci --no-audit --no-fund
+      - name: Inventory current Expo Router screens
+        run: npm run frontend:contract
+      - name: Install mobile dependencies
+        working-directory: mobile-source
+        run: npm ci --no-audit --no-fund
+      - name: Build isolated x86_64 release APK
+        working-directory: mobile-source
+        run: |
+          npx expo prebuild --platform android --clean
+          python3 - <<'PY'
+          from pathlib import Path
+          manifest = Path('android/app/src/main/AndroidManifest.xml')
+          text = manifest.read_text()
+          # Loopback API only in the disposable emulator build; no app source changes.
+          text = text.replace('<application ', '<application android:usesCleartextTraffic="true" ', 1)
+          manifest.write_text(text)
+          PY
+          cd android
+          ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
+      - name: Verify APK and record exact source
+        run: |
+          mkdir -p .runtime/apk
+          cp mobile-source/android/app/build/outputs/apk/release/app-release.apk .runtime/apk/onze-automation-emulator.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose .runtime/apk/onze-automation-emulator.apk
+          sha256sum .runtime/apk/onze-automation-emulator.apk > .runtime/apk/SHA256SUMS
+          git -C mobile-source rev-parse HEAD > .runtime/apk/mobile-revision.txt
+      - uses: actions/upload-artifact@v6
+        with:
+          name: isolated-emulator-apk
+          include-hidden-files: true
+          path: .runtime/apk/
+          retention-days: 7
+
+  android:
+    needs: apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: onze
+          POSTGRES_PASSWORD: onze-automation-only
+          POSTGRES_DB: onze_automation
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U onze -d onze_automation"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ONZE_API_DIR: ${{ github.workspace }}/backend-source
+      ONZE_MOBILE_DIR: ${{ github.workspace }}/mobile-source
+      AUTOMATION_CONTROL_TOKEN: isolated-ci-control-0123456789-automation
+      AUTOMATION_DATABASE_PASSWORD: onze-automation-only
+      FRONTEND_APK: ${{ github.workspace }}/.runtime/apk/onze-automation-emulator.apk
+      FRONTEND_SHARD: ${{ matrix.shard }}
+      FRONTEND_FILTER: ${{ inputs.scenarios }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: LuisLipinski/onze-api
+          ref: ${{ inputs.backend_ref || 'development' }}
+          path: backend-source
+          persist-credentials: false
+      - uses: actions/checkout@v7
+        with:
+          repository: LuisLipinski/onze-mobile
+          ref: ${{ inputs.mobile_ref || 'development' }}
+          path: mobile-source
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+          cache-dependency-path: backend-source/pom.xml
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.13.0'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx appium driver install uiautomator2@8.7.1
+      - run: npm run typecheck
+      - name: Record source and check contracts
+        run: |
+          npm run backend:contract
+          npm run frontend:contract
+      - uses: actions/download-artifact@v6
+        with:
+          name: isolated-emulator-apk
+          path: .runtime/apk
+      - name: Verify emulator APK matches checked-out mobile source
+        run: |
+          sha256sum -c .runtime/apk/SHA256SUMS
+          test "$(cat .runtime/apk/mobile-revision.txt)" = "$(git -C mobile-source rev-parse HEAD)"
+      - name: Create isolated tools database
+        env:
+          PGPASSWORD: onze-automation-only
+        run: psql -h 127.0.0.1 -U onze -d onze_automation -c 'CREATE DATABASE onze_automation_tools'
+      - name: Start isolated API and native automation server
+        run: |
+          npm run backend:start > .runtime/startup.log 2>&1 &
+          npx appium --address 127.0.0.1 --port 4723 --log .runtime/appium.log > .runtime/appium-startup.log 2>&1 &
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Exercise native Android UI
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          arch: x86_64
+          target: google_apis
+          profile: pixel_2
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
+          script: |
+            adb shell wm size 1080x2400
+            adb shell wm density 360
+            npm run frontend:test -- --shard=${{ matrix.shard }}/4 --grep="${FRONTEND_FILTER:-.}"
+      - name: Publish native evidence
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: android-ui-report-${{ matrix.shard }}
+          include-hidden-files: true
+          path: |
+            frontend-report/
+            frontend-results/
+            coverage/results/frontend-*.json
+            .runtime/*.log
+            .runtime/*-source.json
+            .runtime/apk/mobile-revision.txt
+            .runtime/apk/SHA256SUMS
+          retention-days: 14
+
+  coverage:
+    needs: android
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.13.0'
+      - uses: actions/download-artifact@v6
+        with:
+          pattern: android-ui-report-*
+          path: .runtime/android-shards
+      - name: Require all declared native flows and routes
+        if: ${{ !inputs.scenarios }}
+        run: node scripts/check-frontend-results.mjs
+      - uses: actions/upload-artifact@v6
+        if: ${{ !inputs.scenarios }}
+        with:
+          name: frontend-coverage
+          path: coverage/results/frontend-coverage.*
+          retention-days: 14

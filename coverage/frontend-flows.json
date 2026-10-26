@@ -1,0 +1,142 @@
+{
+  "scope": "Native Android functional matrix; route guards included; not line or branch coverage",
+  "routes": [
+    "add-match-guest",
+    "create-group",
+    "create-group-details",
+    "create-group-invite",
+    "create-match",
+    "dev-test-data",
+    "edit-match-player-config",
+    "extend-match-signup",
+    "forgot-password",
+    "group",
+    "group-admin-permissions",
+    "group-admins",
+    "group-credits",
+    "group-invite",
+    "group-settings",
+    "group-statistics",
+    "groups",
+    "home",
+    "index",
+    "join-group",
+    "join/[code]",
+    "live-match",
+    "match",
+    "match-teams",
+    "player-statistics",
+    "register",
+    "reset-password",
+    "settings",
+    "sports-profile",
+    "technical-profile"
+  ],
+  "flows": [
+    {
+      "id": "UI-A01",
+      "description": "login inválido mostra erro e mantém formulário",
+      "file": "frontend/auth.spec.ts"
+    },
+    {
+      "id": "UI-A02",
+      "description": "cadastro pelo Android e login com a conta criada",
+      "file": "frontend/auth.spec.ts"
+    },
+    {
+      "id": "UI-A03",
+      "description": "recuperação solicita código e altera senha pela interface",
+      "file": "frontend/auth.spec.ts"
+    },
+    {
+      "id": "UI-A04",
+      "description": "recuperação recusa código incorreto sem alterar senha",
+      "file": "frontend/auth.spec.ts"
+    },
+    {
+      "id": "UI-A05",
+      "description": "sessão persiste ao reabrir e logout volta ao login",
+      "file": "frontend/auth.spec.ts"
+    },
+    {
+      "id": "UI-A06",
+      "description": "tabs navegam e voltam ao grupo sem perder sessão",
+      "file": "frontend/auth.spec.ts"
+    },
+    {
+      "id": "UI-A07",
+      "description": "convite profundo exige autenticação e preserva código",
+      "file": "frontend/auth.spec.ts"
+    },
+    {
+      "id": "UI-G01",
+      "description": "cria grupo nas três etapas com dados opcionais",
+      "file": "frontend/groups.spec.ts"
+    },
+    {
+      "id": "UI-G02",
+      "description": "aceita convite digitado e exige perfil esportivo",
+      "file": "frontend/groups.spec.ts"
+    },
+    {
+      "id": "UI-G03",
+      "description": "renova convite somente após confirmação e abre compartilhamento Android",
+      "file": "frontend/groups.spec.ts"
+    },
+    {
+      "id": "UI-G04",
+      "description": "membro vê seu menu e não vê comandos administrativos",
+      "file": "frontend/groups.spec.ts"
+    },
+    {
+      "id": "UI-G05",
+      "description": "promoção começa sem funções e permissões são salvas individualmente",
+      "file": "frontend/groups.spec.ts"
+    },
+    {
+      "id": "UI-G06",
+      "description": "administrador delegado vê somente as funções autorizadas",
+      "file": "frontend/groups.spec.ts"
+    },
+    {
+      "id": "UI-G07",
+      "description": "principal transfere cargo com confirmação",
+      "file": "frontend/groups.spec.ts"
+    },
+    {
+      "id": "UI-G08",
+      "description": "rebaixa administrador e remove membro com confirmação",
+      "file": "frontend/groups.spec.ts"
+    },
+    {
+      "id": "UI-G09",
+      "description": "configura grupo e confirmação de exclusão permite cancelar",
+      "file": "frontend/groups.spec.ts"
+    },
+    {
+      "id": "UI-G10",
+      "description": "membro sai após confirmação e grupo desaparece",
+      "file": "frontend/groups.spec.ts"
+    },
+    {
+      "id": "UI-P01",
+      "description": "perfil esportivo salva posições, goleiro e pé dominante",
+      "file": "frontend/profiles.spec.ts"
+    },
+    {
+      "id": "UI-P02",
+      "description": "membros consultam níveis sem controles de edição",
+      "file": "frontend/profiles.spec.ts"
+    },
+    {
+      "id": "UI-P03",
+      "description": "administrador avalia habilidades e salva no grupo correto",
+      "file": "frontend/profiles.spec.ts"
+    },
+    {
+      "id": "UI-P04",
+      "description": "perfil incompleto impede salvar sem posição",
+      "file": "frontend/profiles.spec.ts"
+    }
+  ]
+}
