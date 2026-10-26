@@ -1,0 +1,802 @@
+[
+  {
+    "id": "DELETE /api/dev/test-data/matches/{matchId}/attendance",
+    "method": "DELETE",
+    "path": "/api/dev/test-data/matches/{matchId}/attendance",
+    "controller": "DevTestDataController.java",
+    "authentication": true,
+    "optional": true
+  },
+  {
+    "id": "DELETE /api/devices/push-token",
+    "method": "DELETE",
+    "path": "/api/devices/push-token",
+    "controller": "PushDeviceController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "DELETE /api/groups/{groupId}",
+    "method": "DELETE",
+    "path": "/api/groups/{groupId}",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "DELETE /api/groups/{groupId}/members/{memberId}",
+    "method": "DELETE",
+    "path": "/api/groups/{groupId}/members/{memberId}",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "DELETE /api/groups/{groupId}/members/me",
+    "method": "DELETE",
+    "path": "/api/groups/{groupId}/members/me",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "DELETE /api/match-series/{seriesId}",
+    "method": "DELETE",
+    "path": "/api/match-series/{seriesId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "DELETE /api/matches/{matchId}",
+    "method": "DELETE",
+    "path": "/api/matches/{matchId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "DELETE /api/matches/{matchId}/guests/{guestId}",
+    "method": "DELETE",
+    "path": "/api/matches/{matchId}/guests/{guestId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "DELETE /api/matches/{matchId}/live/cards/{eventId}",
+    "method": "DELETE",
+    "path": "/api/matches/{matchId}/live/cards/{eventId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "DELETE /api/matches/{matchId}/live/fouls/{eventId}",
+    "method": "DELETE",
+    "path": "/api/matches/{matchId}/live/fouls/{eventId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "DELETE /api/matches/{matchId}/live/goals/{eventId}",
+    "method": "DELETE",
+    "path": "/api/matches/{matchId}/live/goals/{eventId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "DELETE /api/matches/{matchId}/rental-goalkeepers/{rentalGoalkeeperId}",
+    "method": "DELETE",
+    "path": "/api/matches/{matchId}/rental-goalkeepers/{rentalGoalkeeperId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/auth/me",
+    "method": "GET",
+    "path": "/api/auth/me",
+    "controller": "AuthController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/dev/test-data/matches/{matchId}",
+    "method": "GET",
+    "path": "/api/dev/test-data/matches/{matchId}",
+    "controller": "DevTestDataController.java",
+    "authentication": true,
+    "optional": true
+  },
+  {
+    "id": "GET /api/groups",
+    "method": "GET",
+    "path": "/api/groups",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/groups/{groupId}/credits",
+    "method": "GET",
+    "path": "/api/groups/{groupId}/credits",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/groups/{groupId}/matches",
+    "method": "GET",
+    "path": "/api/groups/{groupId}/matches",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/groups/{groupId}/members",
+    "method": "GET",
+    "path": "/api/groups/{groupId}/members",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/groups/{groupId}/members/{memberId}/sports-profile",
+    "method": "GET",
+    "path": "/api/groups/{groupId}/members/{memberId}/sports-profile",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/groups/{groupId}/members/{memberId}/technical-profile",
+    "method": "GET",
+    "path": "/api/groups/{groupId}/members/{memberId}/technical-profile",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/groups/{groupId}/members/me/sports-profile",
+    "method": "GET",
+    "path": "/api/groups/{groupId}/members/me/sports-profile",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/groups/{groupId}/members/me/technical-profile",
+    "method": "GET",
+    "path": "/api/groups/{groupId}/members/me/technical-profile",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/groups/{groupId}/statistics",
+    "method": "GET",
+    "path": "/api/groups/{groupId}/statistics",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/groups/{groupId}/statistics/players/{userId}",
+    "method": "GET",
+    "path": "/api/groups/{groupId}/statistics/players/{userId}",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/groups/deletion-notices",
+    "method": "GET",
+    "path": "/api/groups/deletion-notices",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/{matchId}",
+    "method": "GET",
+    "path": "/api/matches/{matchId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/{matchId}/guests/{guestId}/technical-profile",
+    "method": "GET",
+    "path": "/api/matches/{matchId}/guests/{guestId}/technical-profile",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/{matchId}/live",
+    "method": "GET",
+    "path": "/api/matches/{matchId}/live",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/{matchId}/minimum-player-decision",
+    "method": "GET",
+    "path": "/api/matches/{matchId}/minimum-player-decision",
+    "controller": "MatchMinimumPlayerDecisionController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/{matchId}/share",
+    "method": "GET",
+    "path": "/api/matches/{matchId}/share",
+    "controller": "MatchShareController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/{matchId}/teams",
+    "method": "GET",
+    "path": "/api/matches/{matchId}/teams",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/{matchId}/teams/images",
+    "method": "GET",
+    "path": "/api/matches/{matchId}/teams/images",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/{matchId}/teams/reserves",
+    "method": "GET",
+    "path": "/api/matches/{matchId}/teams/reserves",
+    "controller": "MatchTeamReserveController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/live",
+    "method": "GET",
+    "path": "/api/matches/live",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/live/stream",
+    "method": "GET",
+    "path": "/api/matches/live/stream",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/matches/upcoming",
+    "method": "GET",
+    "path": "/api/matches/upcoming",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /api/technical/configuration",
+    "method": "GET",
+    "path": "/api/technical/configuration",
+    "controller": "TechnicalConfigurationController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "GET /join/{rawCode}",
+    "method": "GET",
+    "path": "/join/{rawCode}",
+    "controller": "GroupInviteLandingController.java",
+    "authentication": false,
+    "optional": false
+  },
+  {
+    "id": "GET /m/{matchId}",
+    "method": "GET",
+    "path": "/m/{matchId}",
+    "controller": "MatchShareController.java",
+    "authentication": false,
+    "optional": false
+  },
+  {
+    "id": "POST /api/auth/login",
+    "method": "POST",
+    "path": "/api/auth/login",
+    "controller": "AuthController.java",
+    "authentication": false,
+    "optional": false
+  },
+  {
+    "id": "POST /api/auth/password-reset/confirm",
+    "method": "POST",
+    "path": "/api/auth/password-reset/confirm",
+    "controller": "AuthController.java",
+    "authentication": false,
+    "optional": false
+  },
+  {
+    "id": "POST /api/auth/password-reset/request",
+    "method": "POST",
+    "path": "/api/auth/password-reset/request",
+    "controller": "AuthController.java",
+    "authentication": false,
+    "optional": false
+  },
+  {
+    "id": "POST /api/auth/register",
+    "method": "POST",
+    "path": "/api/auth/register",
+    "controller": "AuthController.java",
+    "authentication": false,
+    "optional": false
+  },
+  {
+    "id": "POST /api/dev/test-data/matches/{matchId}/attendance",
+    "method": "POST",
+    "path": "/api/dev/test-data/matches/{matchId}/attendance",
+    "controller": "DevTestDataController.java",
+    "authentication": true,
+    "optional": true
+  },
+  {
+    "id": "POST /api/dev/test-data/matches/{matchId}/generate",
+    "method": "POST",
+    "path": "/api/dev/test-data/matches/{matchId}/generate",
+    "controller": "DevTestDataController.java",
+    "authentication": true,
+    "optional": true
+  },
+  {
+    "id": "POST /api/groups",
+    "method": "POST",
+    "path": "/api/groups",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/groups/{groupId}/invite",
+    "method": "POST",
+    "path": "/api/groups/{groupId}/invite",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/groups/{groupId}/invite/regenerate",
+    "method": "POST",
+    "path": "/api/groups/{groupId}/invite/regenerate",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/groups/{groupId}/matches",
+    "method": "POST",
+    "path": "/api/groups/{groupId}/matches",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/groups/{groupId}/photo",
+    "method": "POST",
+    "path": "/api/groups/{groupId}/photo",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/groups/{groupId}/statistics/seasons",
+    "method": "POST",
+    "path": "/api/groups/{groupId}/statistics/seasons",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/groups/deletion-notices/{noticeId}/acknowledge",
+    "method": "POST",
+    "path": "/api/groups/deletion-notices/{noticeId}/acknowledge",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/groups/join",
+    "method": "POST",
+    "path": "/api/groups/join",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/guests",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/guests",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/live/cards",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/live/cards",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/live/fouls",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/live/fouls",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/live/fouls/{eventId}/resolve",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/live/fouls/{eventId}/resolve",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/live/goals",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/live/goals",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/live/penalties/attempts",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/live/penalties/attempts",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/live/team-statistics",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/live/team-statistics",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/payments/{playerUserId}/reminder",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/payments/{playerUserId}/reminder",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/rental-goalkeepers",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/rental-goalkeepers",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/teams/{teamNumber}/image",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/teams/{teamNumber}/image",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/teams/generate",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/teams/generate",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/teams/reserves/auto",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/teams/reserves/auto",
+    "controller": "MatchTeamReserveController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/waitlist/goalkeeper",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/waitlist/goalkeeper",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "POST /api/matches/{matchId}/waitlist/guest-preference",
+    "method": "POST",
+    "path": "/api/matches/{matchId}/waitlist/guest-preference",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/dev/test-data/matches/{matchId}/scenario",
+    "method": "PUT",
+    "path": "/api/dev/test-data/matches/{matchId}/scenario",
+    "controller": "DevTestDataController.java",
+    "authentication": true,
+    "optional": true
+  },
+  {
+    "id": "PUT /api/devices/push-token",
+    "method": "PUT",
+    "path": "/api/devices/push-token",
+    "controller": "PushDeviceController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/groups/{groupId}/details",
+    "method": "PUT",
+    "path": "/api/groups/{groupId}/details",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/groups/{groupId}/members/{memberId}/demote",
+    "method": "PUT",
+    "path": "/api/groups/{groupId}/members/{memberId}/demote",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/groups/{groupId}/members/{memberId}/permissions",
+    "method": "PUT",
+    "path": "/api/groups/{groupId}/members/{memberId}/permissions",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/groups/{groupId}/members/{memberId}/promote",
+    "method": "PUT",
+    "path": "/api/groups/{groupId}/members/{memberId}/promote",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/groups/{groupId}/members/{memberId}/sports-profile",
+    "method": "PUT",
+    "path": "/api/groups/{groupId}/members/{memberId}/sports-profile",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/groups/{groupId}/members/{memberId}/technical-profile",
+    "method": "PUT",
+    "path": "/api/groups/{groupId}/members/{memberId}/technical-profile",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/groups/{groupId}/members/me/sports-profile",
+    "method": "PUT",
+    "path": "/api/groups/{groupId}/members/me/sports-profile",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/groups/{groupId}/primary-admin",
+    "method": "PUT",
+    "path": "/api/groups/{groupId}/primary-admin",
+    "controller": "GroupController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/attendance",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/attendance",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/goalkeepers/{playerUserId}",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/goalkeepers/{playerUserId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/guests/{guestId}/technical-profile",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/guests/{guestId}/technical-profile",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/live/finish",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/live/finish",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/live/penalties/confirm-winner",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/live/penalties/confirm-winner",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/live/penalties/lineup",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/live/penalties/lineup",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/live/period/added-time",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/live/period/added-time",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/live/period/finish",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/live/period/finish",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/live/period/start-next",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/live/period/start-next",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/live/reset",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/live/reset",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/live/score",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/live/score",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/live/start",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/live/start",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/minimum-player-decision/approve",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/minimum-player-decision/approve",
+    "controller": "MatchMinimumPlayerDecisionController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/minimum-player-decision/extend",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/minimum-player-decision/extend",
+    "controller": "MatchMinimumPlayerDecisionController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/payment-settlements",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/payment-settlements",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/payment/reported",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/payment/reported",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/payments/{playerUserId}/confirm",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/payments/{playerUserId}/confirm",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/payments/{playerUserId}/reject",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/payments/{playerUserId}/reject",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/payments/{playerUserId}/settlement",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/payments/{playerUserId}/settlement",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/player-configuration",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/player-configuration",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/replacements/{departedUserId}",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/replacements/{departedUserId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/teams/assignments/{assignmentId}",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/teams/assignments/{assignmentId}",
+    "controller": "MatchController.java",
+    "authentication": true,
+    "optional": false
+  },
+  {
+    "id": "PUT /api/matches/{matchId}/teams/reserves",
+    "method": "PUT",
+    "path": "/api/matches/{matchId}/teams/reserves",
+    "controller": "MatchTeamReserveController.java",
+    "authentication": true,
+    "optional": false
+  }
+]

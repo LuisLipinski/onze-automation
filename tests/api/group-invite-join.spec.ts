@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 
 type AuthBody = {
   accessToken: string;
@@ -40,6 +40,7 @@ function browserHeaders() {
 
 test('deve compartilhar convite HTTPS reutilizável e permitir regeneração pelo admin', async ({
   request,
+  baseURL,
 }) => {
   const creator = await registerUser(request, 'invite-admin');
   const firstMember = await registerUser(request, 'invite-member-1');
@@ -60,7 +61,7 @@ test('deve compartilhar convite HTTPS reutilizável e permitir regeneração pel
   const invite = (await inviteResponse.json()) as InviteBody;
   expect(invite.deepLink).toBe(`onze://join/${invite.code}`);
   expect(invite.shareUrl).toBe(
-    `https://onze-organizador-de-pelada.onrender.com/join/${invite.code}`,
+    `${baseURL}/join/${invite.code}`,
   );
 
   const landingResponse = await request.get(invite.shareUrl, { headers: browserHeaders() });
@@ -114,7 +115,7 @@ test('deve compartilhar convite HTTPS reutilizável e permitir regeneração pel
   expect(regenerated.code).not.toBe(invite.code);
   expect(regenerated.deepLink).toBe(`onze://join/${regenerated.code}`);
   expect(regenerated.shareUrl).toBe(
-    `https://onze-organizador-de-pelada.onrender.com/join/${regenerated.code}`,
+    `${baseURL}/join/${regenerated.code}`,
   );
 
   const oldLandingResponse = await request.get(invite.shareUrl, { headers: browserHeaders() });

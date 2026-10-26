@@ -1,4 +1,4 @@
-import { type APIRequestContext, expect, test } from '@playwright/test';
+import { type APIRequestContext, expect, test } from '../support/test';
 
 type AuthBody = {
   accessToken: string;
@@ -94,6 +94,13 @@ async function createGroupWithMembers(
     expect(joinResponse.status()).toBe(200);
   }
 
+  for (const [index, player] of [primary, ...members].entries()) {
+    const profile = await request.put(`/api/groups/${group.id}/members/me/sports-profile`, {
+      headers: auth(player.accessToken),
+      data: { primaryPosition: index === 0 ? 'GOALKEEPER' : 'MIDFIELDER', secondaryPosition: null, canPlayGoalkeeper: false, dominantFoot: 'RIGHT' },
+    });
+    expect(profile.status()).toBe(200);
+  }
   return group;
 }
 
@@ -107,6 +114,9 @@ function oneOffMatch(maxPlayers: number, paymentRequired = false) {
     paymentRequired,
     notes: 'Criada pela automação externa',
     recurrence: 'NONE',
+    matchType: 'VERSUS_EXTERNAL',
+    requiredGoalkeepers: 1,
+    goalkeeperPays: true,
   };
 }
 
@@ -142,6 +152,9 @@ test.describe('P2, P6 e P7 - partidas, pagamentos e notificações', () => {
     const match = (await createResponse.json()) as MatchBody;
     expect(match).toMatchObject({
       recurrence: 'NONE',
+    matchType: 'VERSUS_EXTERNAL',
+    requiredGoalkeepers: 1,
+    goalkeeperPays: true,
       attendanceOpen: true,
       goingCount: 0,
     });
@@ -162,12 +175,12 @@ test.describe('P2, P6 e P7 - partidas, pagamentos e notificações', () => {
     await expect(firstGoing.json()).resolves.toMatchObject({ goingCount: 2 });
 
     const fullResponse = await updateAttendance(request, match.id, second, 'GOING');
-    expect(fullResponse.status()).toBe(409);
-    await expect(fullResponse.json()).resolves.toMatchObject({ code: 'MATCH_FULL' });
+    expect(fullResponse.status()).toBe(200);
+    await expect(fullResponse.json()).resolves.toMatchObject({ myAttendance: 'WAITLISTED', myWaitlistPosition: 1 });
 
-    const primaryLeaves = await updateAttendance(request, match.id, primary, 'NOT_GOING');
+    const primaryLeaves = await updateAttendance(request, match.id, first, 'NOT_GOING');
     expect(primaryLeaves.status()).toBe(200);
-    await expect(primaryLeaves.json()).resolves.toMatchObject({ goingCount: 1, notGoingCount: 1 });
+    await expect(primaryLeaves.json()).resolves.toMatchObject({ goingCount: 2, notGoingCount: 1 });
 
     const secondGoing = await updateAttendance(request, match.id, second, 'GOING');
     expect(secondGoing.status()).toBe(200);

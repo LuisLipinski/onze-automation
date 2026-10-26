@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "backend:start": "node scripts/start-backend.mjs",
+    "backend:contract": "node scripts/check-backend-contract.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",

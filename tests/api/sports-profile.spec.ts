@@ -1,5 +1,5 @@
-import { expect, test } from '@playwright/test';
-import type { APIRequestContext } from '@playwright/test';
+import { expect, test } from '../support/test';
+import type { APIRequestContext } from '../support/test';
 
 type AuthBody = {
   accessToken: string;
