@@ -51,6 +51,8 @@ export class Android {
   async stop() { if (this.session) await this.command(this.path(''), undefined, 'DELETE'); }
   async reset(beginTest = false) {
     if (beginTest) this.evidence = { native: true, commands: 0, assertions: 0, screens: [] };
+    // Close any OS chooser or shade left by a failed test before restarting.
+    await this.back();
     await this.execute('mobile: terminateApp', { appId: appPackage });
     await this.execute('mobile: clearApp', { appId: appPackage });
     await this.execute('mobile: activateApp', { appId: appPackage });
@@ -91,14 +93,21 @@ export class Android {
         const box = containers.length
           ? await this.command(this.path(`/element/${containers.at(-1)![elementKey]}/rect`))
           : { x: 40, y: 190, width: 970, height: 1720 };
-        // Use the live viewport bounds. Passing a cached UiObject2 to Android's
-        // scroll implementation becomes stale during React layout updates.
         if (!containers.length) return false;
-        await this.execute('mobile: swipeGesture', {
-          left: box.x + 10, top: box.y + 10,
-          width: Math.max(1, box.width - 20), height: Math.max(1, box.height - 20), direction, percent: 0.7, speed: 3000,
+        const viewport = await this.command(this.path('/window/rect'));
+        // Keep gestures inside the app. Swiping from a scroll container's edge
+        // can invoke Android's notification shade or Home gesture instead.
+        const top = Math.max(box.y + 40, viewport.height * 0.18);
+        const bottom = Math.min(box.y + box.height - 40, viewport.height * 0.80);
+        const left = Math.max(box.x + 20, viewport.width * 0.10);
+        const right = Math.min(box.x + box.width - 20, viewport.width * 0.90);
+        if (bottom <= top || right <= left) return false;
+        // A coordinate scroll avoids cached UiObject2 handles, and returns
+        // whether more content exists in this direction (unlike swipeGesture).
+        return await this.execute('mobile: scrollGesture', {
+          left, top, width: right - left, height: bottom - top,
+          direction, percent: 0.7, speed: 3000,
         });
-        return true;
       } catch (error) {
         if (attempt || !(error instanceof Error) || !error.message.includes('stale element reference')) throw error;
       }

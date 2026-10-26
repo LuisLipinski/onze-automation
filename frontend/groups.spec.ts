@@ -119,6 +119,10 @@ test('[UI-G07] principal transfere cargo com confirmação', async ({ ui, reques
   await ui.tap('Tornar principal');
   await ui.tap('Transferir cargo');
   await expect.poll(async () => (await readGroup(request, g.id, g.members[0]))?.role).toBe('PRIMARY_ADMIN');
+  await ui.sees('ADMINISTRADOR');
+  await ui.reset();
+  await ui.login(g.members[0]);
+  await ui.open('group', { groupId: g.id });
   await ui.sees('ADMINISTRADOR PRINCIPAL');
 });
 
