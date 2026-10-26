@@ -109,7 +109,7 @@ public class AutomationApplication {
                         int deleted = app.getBean(GroupDeletionNotificationProcessor.class).processPending();
                         result = Map.of("opened", opened, "notifications", notifications, "deletions", deleted);
                     }
-                    case "/outbox" -> result = db.queryForList("select id::text, dedupe_key, notification_type, status, attempts, recipient_user_id::text, match_id::text, last_error from match_notification_jobs order by created_at");
+                    case "/outbox" -> result = db.queryForList("select id::text, notification_type, status, attempts, recipient_user_id::text, match_id::text, last_error from match_notification_jobs order by created_at");
                     case "/devices" -> result = db.queryForList("select user_id::text, expo_push_token, active from push_devices");
                     case "/routes" -> result = app.getBean("requestMappingHandlerMapping",
                             org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping.class)
