@@ -93,7 +93,9 @@ test('[UI-A07] convite profundo exige autenticação e preserva código', async 
   const g = await group(request, 0);
   const newcomer = await register(request, 'Convidado Android');
   await ui.open(`join/${g.invitation.code}`);
-  await ui.screen('join/[code]', 'Senha');
+  await ui.screen('join/[code]', 'Entrar em um grupo');
+  await ui.tap('Entrar no grupo');
+  await ui.has('Senha');
   await ui.signIn(newcomer);
   await ui.sees('Entrar no grupo');
   await ui.tap('Entrar no grupo');

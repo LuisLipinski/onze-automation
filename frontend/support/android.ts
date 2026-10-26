@@ -47,11 +47,11 @@ export class Android {
     await this.command(this.path('/appium/settings'), { settings: { waitForIdleTimeout: 0, waitForSelectorTimeout: 0 } });
   }
   async stop() { if (this.session) await this.command(this.path(''), undefined, 'DELETE'); }
-  async reset() {
+  async reset(beginTest = false) {
+    if (beginTest) this.evidence = { native: true, commands: 0, assertions: 0, screens: [] };
     await this.execute('mobile: terminateApp', { appId: appPackage });
     await this.execute('mobile: clearApp', { appId: appPackage });
     await this.execute('mobile: activateApp', { appId: appPackage });
-    this.evidence = { native: true, commands: 0, assertions: 0, screens: [] };
     await this.has('E-mail');
   }
   async open(route: string, params: Record<string, string> = {}) {
@@ -91,7 +91,18 @@ export class Android {
     throw new Error(`Android element not found: ${text}`);
   }
   async tap(text: string, contains = false) {
-    const element = await this.seek(text, contains);
+    let element = await this.seek(text, contains);
+    const condition = contains
+      ? `contains(@text,${literal(text)}) or contains(@content-desc,${literal(text)})`
+      : `@text=${literal(text)} or @content-desc=${literal(text)}`;
+    // Labels can occur both in headings and in buttons. Prefer the actual
+    // Android action node; a Switch must be tapped rather than its static label.
+    const clickable = await this.elements(`//*[(${condition}) and @clickable='true']`);
+    if (clickable[0]) element = clickable[0];
+    else {
+      const parents = await this.elements(`//*[${condition}]/ancestor::*[@clickable='true'][1]`);
+      if (parents[0]) element = parents[0];
+    }
     this.evidence.commands++;
     await this.command(this.path(`/element/${element[elementKey]}/click`), {});
   }
@@ -144,7 +155,28 @@ export class Android {
   async tabs() {
     for (const label of ['Home', 'Grupos', 'Configurações']) await this.has(label);
   }
+  async shareSheet() {
+    this.evidence.assertions++;
+    await expect.poll(async () => this.execute('mobile: getCurrentPackage')).toMatch(/^(android|com\.android\.intentresolver|com\.google\.android\.)/);
+  }
+  async tapWithin(label: string, action: string) {
+    await this.seek(label);
+    const candidates = await this.elements(`//*[@text=${literal(label)}]/ancestor::*[.//*[@text=${literal(action)} or @content-desc=${literal(action)}]][1]//*[@text=${literal(action)} or @content-desc=${literal(action)}]`);
+    expect(candidates[0], `${action} in card ${label}`).toBeTruthy();
+    this.evidence.commands++;
+    await this.command(this.path(`/element/${candidates[0][elementKey]}/click`), {});
+  }
   async back() { await this.execute('mobile: pressKey', { keycode: 4 }); }
+  async tapId(id: string) {
+    const element = (await this.elements(`//*[@resource-id=${literal(id)}]`))[0];
+    expect(element, `Android resource ${id}`).toBeTruthy();
+    this.evidence.commands++;
+    await this.command(this.path(`/element/${element[elementKey]}/click`), {});
+  }
+  async hasId(id: string) {
+    this.evidence.assertions++;
+    await expect.poll(async () => (await this.elements(`//*[@resource-id=${literal(id)}]`)).length).toBeGreaterThan(0);
+  }
   async attach(info: TestInfo) {
     await info.attach('android-evidence', { body: JSON.stringify(this.evidence), contentType: 'application/json' });
     if (this.session) {

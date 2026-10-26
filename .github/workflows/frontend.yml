@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   apk:
@@ -41,6 +42,31 @@ jobs:
           ref: ${{ inputs.mobile_ref || 'development' }}
           path: mobile-source
           persist-credentials: false
+      - name: Identify mobile revision
+        id: mobile
+        run: echo "sha=$(git -C mobile-source rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Restore verified emulator APK
+        uses: actions/cache@v4
+        id: apk-cache
+        with:
+          path: .runtime/apk
+          key: onze-emulator-apk-v1-${{ steps.mobile.outputs.sha }}
+      - name: Reuse initial verified build while warming the cache
+        if: steps.apk-cache.outputs.cache-hit != 'true' && steps.mobile.outputs.sha == '3f026365728e7d583fe08acf23be13000dd59c57'
+        continue-on-error: true
+        uses: actions/download-artifact@v6
+        with:
+          name: isolated-emulator-apk
+          run-id: 40381597109
+          github-token: ${{ github.token }}
+          path: .runtime/apk
+      - name: Check existing APK source and checksum
+        id: existing
+        run: |
+          if [ -f .runtime/apk/mobile-revision.txt ] && [ "$(cat .runtime/apk/mobile-revision.txt)" = "$(git -C mobile-source rev-parse HEAD)" ]; then
+            sha256sum -c .runtime/apk/SHA256SUMS
+            echo 'ready=true' >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v7
         with:
           node-version: '22.13.0'
@@ -57,9 +83,11 @@ jobs:
       - name: Inventory current Expo Router screens
         run: npm run frontend:contract
       - name: Install mobile dependencies
+        if: steps.existing.outputs.ready != 'true'
         working-directory: mobile-source
         run: npm install --no-audit --no-fund
       - name: Build isolated x86_64 release APK
+        if: steps.existing.outputs.ready != 'true'
         working-directory: mobile-source
         run: |
           npx expo prebuild --platform android --clean
@@ -76,7 +104,9 @@ jobs:
       - name: Verify APK and record exact source
         run: |
           mkdir -p .runtime/apk
-          cp mobile-source/android/app/build/outputs/apk/release/app-release.apk .runtime/apk/onze-automation-emulator.apk
+          if [ '${{ steps.existing.outputs.ready }}' != 'true' ]; then
+            cp mobile-source/android/app/build/outputs/apk/release/app-release.apk .runtime/apk/onze-automation-emulator.apk
+          fi
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose .runtime/apk/onze-automation-emulator.apk
           sha256sum .runtime/apk/onze-automation-emulator.apk > .runtime/apk/SHA256SUMS
           git -C mobile-source rev-parse HEAD > .runtime/apk/mobile-revision.txt

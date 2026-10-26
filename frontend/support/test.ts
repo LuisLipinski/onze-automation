@@ -12,7 +12,7 @@ export const test = base.extend<{ ui: Android; control: Control; isolated: void 
   isolated: [async ({ control, android }, use) => { await android.execute('mobile: terminateApp', { appId: 'com.onze.organizadordepelada' }); await control.call('/reset', {}); await use(); }, { auto: true }],
   ui: async ({ android, isolated }, use, info) => {
     void isolated;
-    await android.reset();
+    await android.reset(true);
     try { await use(android); } finally { await android.attach(info); }
   },
 });

@@ -17,6 +17,8 @@ test('[UI-G01] cria grupo nas três etapas com dados opcionais', async ({ ui, re
   await ui.tap('Salvar e continuar');
   await ui.screen('create-group-invite', 'Grupo criado! 🎉');
   await ui.tap('Pular');
+  await ui.has('Você pode convidar depois');
+  await ui.tap('Ir para meus grupos');
   await ui.has('Pelada Android');
   const groups = await body(await request.get('/api/groups', { headers: auth(actor) }));
   expect(groups[0]).toMatchObject({ name: 'Pelada Android', city: 'Curitiba', venue: 'Arena Android', role: 'PRIMARY_ADMIN' });
@@ -51,7 +53,7 @@ test('[UI-G03] renova convite somente após confirmação e abre compartilhament
   expect(invitation.code).not.toBe(g.invitation.code);
   await ui.sees(invitation.code);
   await ui.tap('Compartilhar convite');
-  await ui.has('Compartilhar', true);
+  await ui.shareSheet();
   await ui.back();
 });
 
@@ -78,7 +80,13 @@ test('[UI-G05] promoção começa sem funções e permissões são salvas indivi
   expect(members.find((m: any) => m.userId === g.members[0].user.id)).toMatchObject({ role: 'ADMIN', permissions: [] });
   await ui.tap('Editar permissões');
   await ui.screen('group-admin-permissions', 'EDITAR ADMINISTRADOR');
-  await ui.tap('Adicionar membros');
+  const labels = ['Adicionar membros', 'Remover membros', 'Promover membros', 'Editar grupo', 'Marcar e configurar jogos', 'Cancelar jogos', 'Gerenciar lista de jogadores', 'Gerenciar finanças', 'Gerenciar escalações', 'Controlar jogo ao vivo', 'Editar perfis e avaliações'];
+  for (const label of labels) await ui.tap(label);
+  await ui.tap('Salvar permissões');
+  await ui.sees('Permissões atualizadas.', true);
+  const all = await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(g.owner) }));
+  expect(all.find((m: any) => m.userId === g.members[0].user.id).permissions).toHaveLength(labels.length);
+  for (const label of labels.slice(1)) await ui.tap(label);
   await ui.tap('Salvar permissões');
   members = await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(g.owner) }));
   expect(members.find((m: any) => m.userId === g.members[0].user.id).permissions).toEqual(['ADD_MEMBERS']);
@@ -92,7 +100,7 @@ test('[UI-G06] administrador delegado vê somente as funções autorizadas', asy
   await ui.tap('☰');
   await ui.has('Convidar novos membros');
   await ui.absent('Marcar jogo');
-  await ui.absent('Complete seu grupo');
+  await ui.absent('Configurações do grupo');
   await ui.absent('Créditos dos jogadores');
 });
 
@@ -142,10 +150,9 @@ test('[UI-G09] configura grupo e confirmação de exclusão permite cancelar', a
   expect((await request.get(`/api/groups/${g.id}`, { headers: auth(g.owner) })).status()).toBe(200);
   await ui.tap('Excluir grupo');
   await ui.tap('Excluir grupo');
-  await ui.has('Grupos');
-  expect((await request.get(`/api/groups/${g.id}`, { headers: auth(g.owner) })).status()).toBe(403);
+  await expect.poll(async () => (await request.get(`/api/groups/${g.id}`, { headers: auth(g.owner) })).status()).toBe(404);
   await ui.reset();
-  await ui.login(g.members[0]);
+  await ui.signIn(g.members[0]);
   await ui.sees('Grupo excluído', true);
 });
 

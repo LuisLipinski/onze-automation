@@ -14,7 +14,7 @@ test('[UI-P01] perfil esportivo salva posições, goleiro e pé dominante', asyn
   await ui.tap('Posso jogar no gol quando necessário');
   await ui.tap('Esquerdo');
   await ui.tap('Salvar perfil esportivo');
-  await ui.sees('salvo', true);
+  await ui.sees('atualizado', true);
   const saved = await body(await request.get(`/api/groups/${g.id}/members/me/sports-profile`, { headers: auth(g.members[0]) }));
   expect(saved).toMatchObject({ primaryPosition: 'MIDFIELDER', secondaryPosition: 'ATTACKER', canPlayGoalkeeper: true, dominantFoot: 'LEFT' });
 });
@@ -42,7 +42,7 @@ test('[UI-P03] administrador avalia habilidades e salva no grupo correto', async
   await ui.sees('Habilidades');
   await ui.tap('Aumentar Passe em meia estrela');
   await ui.tap('Salvar avaliação');
-  await ui.sees('salva', true);
+  await ui.sees('Avaliação técnica atualizada.', true);
   const saved = await body(await request.get(`/api/groups/${g.id}/members/${g.members[0].membershipId}/technical-profile`, { headers: auth(g.owner) }));
   expect(saved.ratings.PASSING).toBe(1);
 });

@@ -119,6 +119,151 @@
       "file": "frontend/groups.spec.ts"
     },
     {
+      "id": "UI-T01",
+      "description": "forma times, regenera e abre compartilhamento da escalação",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-T02",
+      "description": "escalação do membro é somente leitura e ferramenta desligada fica oculta",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-T03",
+      "description": "edição manual muda posição, time e reserva sem duplicar jogador",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L01",
+      "description": "inicia jogo pelo Android com nomes dos dois times",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L02",
+      "description": "gol com assistência atualiza placar e eventos",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L03",
+      "description": "gol contra é atribuído ao adversário sem chute automático",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L04",
+      "description": "exclusão confirmada do gol corrige placar e estatísticas",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L05",
+      "description": "chute e escanteio entram nos detalhes e correção remove escanteio",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L06",
+      "description": "falta seleciona vítima do lado clicado e autor adversário",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L07",
+      "description": "pênalti registra infração e cobrança convertida separadamente",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L08",
+      "description": "pênalti perdido não soma gol e exclusão desfaz a cobrança vinculada",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L09",
+      "description": "segundo amarelo expulsa e impede selecionar jogador para gol",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L10",
+      "description": "tempos respeitam relógio e administrador inicia segundo tempo",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L11",
+      "description": "finaliza jogo com confirmação e libera estatísticas",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L12",
+      "description": "reset confirmado devolve jogo ao estado agendado",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L13",
+      "description": "espectador recebe evento ao vivo e não tem botões administrativos",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L14",
+      "description": "cobranças alternadas definem vencedor e confirmação encerra disputa",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L15",
+      "description": "vermelho direto e remoção restauram elegibilidade do jogador",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-L16",
+      "description": "empate abre prorrogação e administrador inicia o tempo extra",
+      "file": "frontend/live.spec.ts"
+    },
+    {
+      "id": "UI-M01",
+      "description": "calendário e relógio são nativos e jogo é criado com convite",
+      "file": "frontend/matches.spec.ts"
+    },
+    {
+      "id": "UI-M02",
+      "description": "formulário valida local e opções de cobrança e tempos",
+      "file": "frontend/matches.spec.ts"
+    },
+    {
+      "id": "UI-M03",
+      "description": "presença confirma, desabilita repetição e permite liberar vaga",
+      "file": "frontend/matches.spec.ts"
+    },
+    {
+      "id": "UI-M04",
+      "description": "próxima ocorrência semanal tem presença fechada e independente",
+      "file": "frontend/matches.spec.ts"
+    },
+    {
+      "id": "UI-M05",
+      "description": "configuração atualiza mínimo e máximo somente neste jogo",
+      "file": "frontend/matches.spec.ts"
+    },
+    {
+      "id": "UI-M06",
+      "description": "convidado é criado pela interface e aparece na lista",
+      "file": "frontend/matches.spec.ts"
+    },
+    {
+      "id": "UI-M07",
+      "description": "cancelar ocorrência semanal preserva as demais",
+      "file": "frontend/matches.spec.ts"
+    },
+    {
+      "id": "UI-M08",
+      "description": "falta de mínimo oferece manter jogo e extensão nativa do prazo",
+      "file": "frontend/matches.spec.ts"
+    },
+    {
+      "id": "UI-M09",
+      "description": "cria série semanal paga pelo Android com PIX e goleiros isentos",
+      "file": "frontend/matches.spec.ts"
+    },
+    {
+      "id": "UI-M10",
+      "description": "encerrar série exige confirmação e cancela ocorrências futuras",
+      "file": "frontend/matches.spec.ts"
+    },
+    {
       "id": "UI-P01",
       "description": "perfil esportivo salva posições, goleiro e pé dominante",
       "file": "frontend/profiles.spec.ts"
@@ -137,6 +282,71 @@
       "id": "UI-P04",
       "description": "perfil incompleto impede salvar sem posição",
       "file": "frontend/profiles.spec.ts"
+    },
+    {
+      "id": "UI-S01",
+      "description": "rankings mostram todas as métricas e critérios de desempate",
+      "file": "frontend/statistics.spec.ts"
+    },
+    {
+      "id": "UI-S02",
+      "description": "temporada encerra histórico, começa zerada e geral mantém resultado",
+      "file": "frontend/statistics.spec.ts"
+    },
+    {
+      "id": "UI-S03",
+      "description": "histórico pessoal abre jogo encerrado e preserva equipe do jogador",
+      "file": "frontend/statistics.spec.ts"
+    },
+    {
+      "id": "UI-S04",
+      "description": "estatísticas vazias e membro não pode iniciar temporada",
+      "file": "frontend/statistics.spec.ts"
+    },
+    {
+      "id": "UI-W01",
+      "description": "vagas de goleiro levam jogador de linha para fila e permitem sair",
+      "file": "frontend/waitlist-finance.spec.ts"
+    },
+    {
+      "id": "UI-W02",
+      "description": "administrador aprova primeiro reserva no gol após o prazo",
+      "file": "frontend/waitlist-finance.spec.ts"
+    },
+    {
+      "id": "UI-W03",
+      "description": "preferência pelo membro da fila remove convidado após confirmação",
+      "file": "frontend/waitlist-finance.spec.ts"
+    },
+    {
+      "id": "UI-W04",
+      "description": "goleiro de aluguel ocupa vaga reservada e pode ser removido",
+      "file": "frontend/waitlist-finance.spec.ts"
+    },
+    {
+      "id": "UI-F01",
+      "description": "jogador informa pagamento e administrador rejeita e depois confirma",
+      "file": "frontend/waitlist-finance.spec.ts"
+    },
+    {
+      "id": "UI-F02",
+      "description": "cobrar jogador gera notificação sem confirmar recebimento",
+      "file": "frontend/waitlist-finance.spec.ts"
+    },
+    {
+      "id": "UI-F03",
+      "description": "crédito do jogador e lista financeira do admin respeitam privacidade",
+      "file": "frontend/waitlist-finance.spec.ts"
+    },
+    {
+      "id": "UI-F04",
+      "description": "qualquer membro abre compartilhamento do jogo sem controles de admin",
+      "file": "frontend/waitlist-finance.spec.ts"
+    },
+    {
+      "id": "UI-F05",
+      "description": "cancelamento pago permite crédito em lote com confirmação",
+      "file": "frontend/waitlist-finance.spec.ts"
     }
   ]
 }
