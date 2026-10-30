@@ -88,9 +88,9 @@ export class Android {
     const visible = `@package='${appPackage}' and @displayed='true'`;
     if (action) {
       const condition = this.condition(text, contains);
-      const direct = await this.elements(`//*[${visible} and @enabled='true' and @clickable='true' and (${condition})]`);
+      const direct = await this.elements(`//*[${visible} and @clickable='true' and (${condition})]`);
       if (direct.length) return direct.at(-1);
-      const parents = await this.elements(`${this.selector(text, contains)}/ancestor::*[${visible} and @enabled='true' and @clickable='true'][1]`);
+      const parents = await this.elements(`${this.selector(text, contains)}/ancestor::*[${visible} and @clickable='true'][1]`);
       if (parents.length) return parents.at(-1);
       // Android's clock exposes virtual hour/minute controls as non-clickable
       // accessibility nodes. They still support a physical touch at their bounds.
