@@ -5,6 +5,7 @@ const appPackage = 'com.onze.organizadordepelada';
 const elementKey = 'element-6066-11e4-a52e-4f735466cecf';
 type Element = Record<typeof elementKey, string>;
 type Evidence = { native: true; commands: number; assertions: number; screens: string[] };
+type Rect = { x: number; y: number; width: number; height: number };
 
 function literal(value: string) {
   if (!value.includes("'")) return `'${value}'`;
@@ -14,6 +15,7 @@ function literal(value: string) {
 /** Small W3C client, deliberately restricted to the local Appium server. */
 export class Android {
   private session = '';
+  private viewport: Rect = { x: 0, y: 0, width: 0, height: 0 };
   private evidence: Evidence = { native: true, commands: 0, assertions: 0, screens: [] };
   private readonly server = 'http://127.0.0.1:4723';
 
@@ -46,7 +48,13 @@ export class Android {
       'appium:logcatFilterSpecs': ['ReactNativeJS:W', 'AndroidRuntime:E', '*:S'],
     } } });
     this.session = value.sessionId;
-    await this.command(this.path('/appium/settings'), { settings: { waitForIdleTimeout: 500, waitForSelectorTimeout: 0 } });
+    await this.command(this.path('/appium/settings'), { settings: {
+      waitForIdleTimeout: 500, waitForSelectorTimeout: 0,
+      // Android 36 can leave an empty permission-controller window focused
+      // after denial. Include the visible app and its React Native dialogs.
+      enableMultiWindows: true,
+    } });
+    this.viewport = await this.command(this.path('/window/rect'));
   }
   async stop() { if (this.session) await this.command(this.path(''), undefined, 'DELETE'); }
   async reset(beginTest = false) {
@@ -62,68 +70,74 @@ export class Android {
     const url = `onze://${route.replace(/^\//, '')}${Object.keys(params).length ? `?${new URLSearchParams(params)}` : ''}`;
     await this.execute('mobile: deepLink', { url, package: appPackage, waitForLaunch: true });
   }
-  private selector(text: string, contains = false) {
+  private condition(text: string, contains = false) {
     return contains
-      ? `//*[contains(@text,${literal(text)}) or contains(@content-desc,${literal(text)})]`
-      : `//*[@text=${literal(text)} or @content-desc=${literal(text)}]`;
+      ? `contains(@text,${literal(text)}) or contains(@content-desc,${literal(text)})`
+      : `@text=${literal(text)} or @content-desc=${literal(text)}`;
+  }
+  private selector(text: string, contains = false) {
+    return `//*[@package='${appPackage}' and @displayed='true' and (${this.condition(text, contains)})]`;
   }
   async elements(selector: string): Promise<Element[]> {
     return this.command(this.path('/elements'), { using: 'xpath', value: selector });
   }
-  async find(text: string, contains = false) {
+  async find(text: string, contains = false, action = false) {
     await this.dismissNotificationPermission();
-    const byDescription = contains ? `//*[contains(@content-desc,${literal(text)})]` : `//*[@content-desc=${literal(text)}]`;
+    if (action) {
+      const condition = this.condition(text, contains);
+      const direct = await this.elements(`//*[@package='${appPackage}' and @displayed='true' and @clickable='true' and (${condition})]`);
+      if (direct.length) return direct.at(-1);
+      return (await this.elements(`${this.selector(text, contains)}/ancestor::*[@package='${appPackage}' and @displayed='true' and @clickable='true'][1]`)).at(-1);
+    }
+    const description = contains ? `contains(@content-desc,${literal(text)})` : `@content-desc=${literal(text)}`;
+    const byDescription = `//*[@package='${appPackage}' and @displayed='true' and ${description}]`;
     return (await this.elements(byDescription))[0] ?? (await this.elements(this.selector(text, contains)))[0];
   }
   private async dismissNotificationPermission() {
-    const notificationRequest = await this.elements(`//*[@resource-id='com.android.permissioncontroller:id/permission_message' and contains(@text,'Onze') and contains(@text,'notifications')]`);
+    const prompt = `//*[@displayed='true' and contains(@resource-id,':id/permission_message') and contains(@text,'Onze') and (contains(@text,'notifications') or contains(@text,'notificações'))]`;
+    const notificationRequest = await this.elements(prompt);
     if (!notificationRequest.length) return;
     // Exercise the OS denial path, keeping the emulator independent of real
     // Expo/FCM registration. Push delivery remains in the backend boundary suite.
-    const buttons = await this.elements(`//*[starts-with(@resource-id,'com.android.permissioncontroller:id/permission_deny') and @clickable='true']`);
+    const buttons = await this.elements(`//*[@displayed='true' and contains(@resource-id,':id/permission_deny') and @clickable='true']`);
     if (buttons[0]) {
       this.evidence.assertions++;
       await this.click(buttons[0]);
+      await expect.poll(async () => (await this.elements(prompt)).length).toBe(0);
     }
   }
   async scroll(direction: 'up' | 'down' = 'down') {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        const containers = await this.elements(`//*[@scrollable='true']`);
-        const box = containers.length
-          ? await this.command(this.path(`/element/${containers.at(-1)![elementKey]}/rect`))
-          : { x: 40, y: 190, width: 970, height: 1720 };
-        if (!containers.length) return false;
-        const viewport = await this.command(this.path('/window/rect'));
-        // Keep gestures inside the app. Swiping from a scroll container's edge
-        // can invoke Android's notification shade or Home gesture instead.
-        const top = Math.max(box.y + 40, viewport.height * 0.18);
-        const bottom = Math.min(box.y + box.height - 40, viewport.height * 0.80);
-        const left = Math.max(box.x + 20, viewport.width * 0.10);
-        const right = Math.min(box.x + box.width - 20, viewport.width * 0.90);
-        if (bottom <= top || right <= left) return false;
-        // A coordinate scroll avoids cached UiObject2 handles, and returns
-        // whether more content exists in this direction (unlike swipeGesture).
-        return await this.execute('mobile: scrollGesture', {
-          left, top, width: right - left, height: bottom - top,
-          direction, percent: 0.7, speed: 3000,
-        });
-      } catch (error) {
-        if (attempt || !(error instanceof Error) || !error.message.includes('stale element reference')) throw error;
-      }
-    }
+    const before: string = await this.command(this.path('/source'));
+    if (!before.includes('scrollable="true"')) return false;
+    const { width, height } = this.viewport;
+    const x = Math.round(width * 0.85);
+    const top = Math.round(height * 0.28);
+    const bottom = Math.round(height * 0.78);
+    // Use a bounded finger movement instead of a cached scroll-container
+    // handle or scrollGesture's unreliable canScrollMore result on RN views.
+    await this.touch([
+      { type: 'pointerMove', duration: 0, x, y: direction === 'down' ? bottom : top },
+      { type: 'pointerDown', button: 0 },
+      { type: 'pause', duration: 100 },
+      { type: 'pointerMove', duration: 500, x, y: direction === 'down' ? top : bottom },
+      { type: 'pointerUp', button: 0 },
+    ]);
+    const after: string = await this.command(this.path('/source'));
+    // Geometry changes when the page moves; live clock text does not count.
+    const bounds = (source: string) => source.match(/\bbounds="[^"]*"/g)?.join();
+    return bounds(before) !== bounds(after);
   }
-  async seek(text: string, contains = false): Promise<Element> {
+  async seek(text: string, contains = false, action = false): Promise<Element> {
     // Allow asynchronous requests/navigation to settle before moving the screen.
     for (let i = 0; i < 8; i++) {
-      const element = await this.find(text, contains);
+      const element = await this.find(text, contains, action);
       if (element) return element;
       await new Promise(resolve => setTimeout(resolve, 250));
     }
     for (const direction of ['down', 'up', 'down'] as const) {
       for (let i = 0; i < 13; i++) {
         const more = await this.scroll(direction);
-        const element = await this.find(text, contains);
+        const element = await this.find(text, contains, action);
         if (element) return element;
         if (!more) break;
       }
@@ -131,30 +145,36 @@ export class Android {
     throw new Error(`Android element not found: ${text}`);
   }
   async tap(text: string, contains = false) {
-    let element = await this.seek(text, contains);
-    const condition = contains
-      ? `contains(@text,${literal(text)}) or contains(@content-desc,${literal(text)})`
-      : `@text=${literal(text)} or @content-desc=${literal(text)}`;
-    // Labels can occur both in headings and in buttons. Prefer the actual
-    // Android action node; a Switch must be tapped rather than its static label.
-    const clickable = await this.elements(`//*[(${condition}) and @clickable='true']`);
-    if (clickable[0]) element = clickable[0];
-    else {
-      const parents = await this.elements(`//*[${condition}]/ancestor::*[@clickable='true'][1]`);
-      if (parents[0]) element = parents[0];
-    }
+    // Continue scrolling past a matching heading until its action is visible.
+    const element = await this.seek(text, contains, true);
     try { await this.click(element); }
     catch (error) {
       if (!(error instanceof Error) || !error.message.includes('stale element reference')) throw error;
       // Stale means Android rejected the input before performing it. Re-query
       // only this stale handle; never repeat a timed-out or successful action.
-      await this.click(await this.seek(text, contains));
+      await this.click(await this.seek(text, contains, true));
     }
   }
   private async click(element: Element) {
-    // Gesture taps are reliable for React Native dialog controls where a
-    // UiObject2 click can return successfully without dispatching the press.
-    await this.execute('mobile: clickGesture', { elementId: element[elementKey] });
+    const rect: Rect = await this.command(this.path(`/element/${element[elementKey]}/rect`));
+    const x = Math.round(rect.x + rect.width / 2);
+    const y = Math.round(rect.y + rect.height / 2);
+    if (rect.width <= 0 || rect.height <= 0 || x < 0 || x >= this.viewport.width || y < 0 || y >= this.viewport.height) {
+      throw new Error(`Android action is outside the viewport: ${JSON.stringify(rect)}`);
+    }
+    // A complete down/up touch also dispatches React Native modal presses.
+    await this.touch([
+      { type: 'pointerMove', duration: 0, x, y },
+      { type: 'pointerDown', button: 0 },
+      { type: 'pause', duration: 100 },
+      { type: 'pointerUp', button: 0 },
+    ]);
+  }
+  private async touch(actions: Record<string, unknown>[]) {
+    this.evidence.commands++;
+    await this.command(this.path('/actions'), { actions: [{
+      type: 'pointer', id: 'finger', parameters: { pointerType: 'touch' }, actions,
+    }] });
   }
   async tapLast(text: string) {
     await this.seek(text);
@@ -169,14 +189,15 @@ export class Android {
   }
   private async fillMatching(label: string, value: string, contains: boolean) {
     const original = await this.seek(label, contains);
-    const inputs = await this.elements('//android.widget.EditText');
+    const inputSelector = `//android.widget.EditText[@package='${appPackage}' and @displayed='true']`;
+    const inputs = await this.elements(inputSelector);
     const index = inputs.findIndex(element => element[elementKey] === original[elementKey]);
     expect(index, `Editable Android input ${label}`).toBeGreaterThanOrEqual(0);
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        const element = (await this.elements('//android.widget.EditText'))[index];
+        const element = (await this.elements(inputSelector))[index];
         await this.command(this.path(`/element/${element[elementKey]}/clear`), {});
-        const fresh = (await this.elements('//android.widget.EditText'))[index];
+        const fresh = (await this.elements(inputSelector))[index];
         this.evidence.commands++;
         await this.command(this.path(`/element/${fresh[elementKey]}/value`), { text: value });
         break;
