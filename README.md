@@ -56,7 +56,7 @@ A matriz em [frontend-flows.json](coverage/frontend-flows.json) declara 63 cená
 
 O workflow **Android UI Automation** compila o mobile `development` para x86_64, usando somente `http://10.0.2.2:8080`. A liberação de HTTP fica no manifesto Android gerado desse build isolado. O APK de emulador não é uma versão para distribuição. O código do mobile e o APK arm64 para os usuários permanecem os mesmos.
 
-Cada uma das oito partes executa seu próprio emulador Android 36 e sua própria API/PostgreSQL descartável. Os dados são preparados pela API e as ações verificadas ocorrem na interface; consultas à API conferem persistência. O login é feito pelo formulário real e o armazenamento do aplicativo é limpo a cada cenário. O pedido nativo de notificações é recusado na interface e essa recusa fica fixa no emulador durante o cenário, para evitar novos diálogos sobre as ações do app e registro no Expo/FCM real. Código de recuperação vem do capturador de e-mail do harness. Os prazos usam o relógio controlado da API; os testes de tempos aguardam o cronômetro real do emulador liberar o encerramento, sem mudar o relógio do aparelho.
+Cada uma das oito partes executa seu próprio emulador Android 36 e sua própria API/PostgreSQL descartável. Os dados são preparados pela API e as ações verificadas ocorrem na interface; consultas à API conferem persistência. O login é feito pelo formulário real e o armazenamento do aplicativo é limpo a cada cenário. A permissão de notificações é concedida na preparação do emulador. A receita v2 do APK omite o projeto EAS e desativa a inicialização automática do FCM; o código de notificações locais continua real, sem registro remoto. Essa configuração é exclusiva do checkout descartável usado pelo CI. Código de recuperação vem do capturador de e-mail do harness. Os prazos usam o relógio controlado da API; os testes de tempos aguardam o cronômetro real do emulador liberar o encerramento, sem mudar o relógio do aparelho.
 
 ```bash
 npm ci
@@ -68,10 +68,12 @@ npx appium --address 127.0.0.1 --port 4723
 FRONTEND_APK=/caminho/absoluto/onze-automation-emulator.apk npm run frontend:test
 ```
 
-Requisitos adicionais locais: Android SDK/ADB, emulador Android 36 e APK release x86_64 compilado para a API local. `ONZE_MOBILE_DIR` aponta para o checkout mobile (padrão `../onze-mobile`). Não execute backend e Android ao mesmo tempo contra a mesma base: ambos limpam dados entre cenários.
+Requisitos adicionais locais: Android SDK/ADB, unzip, emulador Android 36 e APK release x86_64 da receita v2, compilado para a API local, sem projeto EAS e com FCM auto-init desativado. O driver recusa APKs que ainda contenham o projeto EAS. `ONZE_MOBILE_DIR` aponta para o checkout mobile (padrão `../onze-mobile`). Não execute backend e Android ao mesmo tempo contra a mesma base: ambos limpam dados entre cenários.
 
 O CI publica HTML, JSON, captura de tela de cada cenário, hierarquia Android em falhas e logs por 14 dias. O gate consolidado exige todas as partes, os 63 cenários aprovados com comandos e assertions nativos, as 30 rotas/guardas observadas, revisões idênticas da API/mobile e zero falhas, ignorados ou retries. Rotas novas sem inventário atualizado bloqueiam a compilação.
 
 O disparo manual aceita `mobile_ref`, `backend_ref` e um filtro opcional `scenarios`. Execuções filtradas são diagnósticas e não aprovam o gate integral. Alterações em API/mobile não disparam automaticamente este repositório; execute o workflow depois de integrar mudanças nesses projetos.
 
 A cobertura mede a matriz funcional declarada e entradas/guardas das rotas, não linhas/branches TypeScript, comparação de pixels ou todas as combinações de dados e aparelhos. Entrega real de push/e-mail/WhatsApp, biometria física e seleção/edição de fotos em aparelhos reais continuam exigindo validação própria. Os testes abrem o compartilhamento nativo sem enviar mensagens para pessoas.
+
+O fluxo de recusa da permissão de notificações não está nesta matriz. Na revisão mobile `3f02636`, esse estado gerou ciclos de atividades `REQUEST_PERMISSIONS` no emulador, interrompendo toques e rolagens; precisa de correção e validação específicas no mobile. A suíte funcional usa a precondição de permissão concedida e mantém o registro remoto isolado.

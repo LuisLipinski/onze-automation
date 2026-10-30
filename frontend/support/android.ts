@@ -17,7 +17,6 @@ function literal(value: string) {
 export class Android {
   private session = '';
   private viewport: Rect = { x: 0, y: 0, width: 0, height: 0 };
-  private notificationPermissionHandled = false;
   private beforeScroll = '';
   private evidence: Evidence = { native: true, commands: 0, assertions: 0, screens: [] };
   private readonly server = 'http://127.0.0.1:4723';
@@ -40,6 +39,10 @@ export class Android {
   async start() {
     const apk = process.env.FRONTEND_APK;
     if (!apk) throw new Error('FRONTEND_APK must identify the isolated emulator APK');
+    const packaged = JSON.parse(execFileSync('unzip', ['-p', apk, 'assets/app.config'], { encoding: 'utf8' }));
+    if ((packaged.expo ?? packaged).extra?.eas?.projectId) {
+      throw new Error('FRONTEND_APK must use emulator recipe v2 without a remote EAS project');
+    }
     const value = await this.command('/session', { capabilities: { alwaysMatch: {
       platformName: 'Android', 'appium:automationName': 'UiAutomator2',
       'appium:app': apk, 'appium:appPackage': appPackage,
@@ -53,8 +56,7 @@ export class Android {
     this.session = value.sessionId;
     await this.command(this.path('/appium/settings'), { settings: {
       waitForIdleTimeout: 500, waitForSelectorTimeout: 0,
-      // Android 36 can leave an empty permission-controller window focused
-      // after denial. Include the visible app and its React Native dialogs.
+      // Include visible app windows and React Native dialogs.
       enableMultiWindows: true,
     } });
     this.viewport = await this.command(this.path('/window/rect'));
@@ -69,7 +71,11 @@ export class Android {
     await this.back();
     await this.execute('mobile: terminateApp', { appId: appPackage });
     await this.execute('mobile: clearApp', { appId: appPackage });
-    this.notificationPermissionHandled = false;
+    // Device fixture only. The emulator build has no EAS project and disables
+    // FCM auto-init, keeping remote registration isolated. This avoids Android's
+    // permission-activity resume loop when the current app is denied access.
+    execFileSync('adb', ['shell', 'pm', 'grant', appPackage,
+      'android.permission.POST_NOTIFICATIONS'], { timeout: 10_000 });
     await this.execute('mobile: activateApp', { appId: appPackage });
     await this.has('E-mail');
   }
@@ -89,7 +95,6 @@ export class Android {
     return this.command(this.path('/elements'), { using: 'xpath', value: selector });
   }
   async find(text: string, contains = false, action = false) {
-    await this.dismissNotificationPermission();
     const visible = `@package='${appPackage}' and @displayed='true'`;
     if (action) {
       const condition = this.condition(text, contains);
@@ -105,36 +110,7 @@ export class Android {
     const byDescription = `//*[${visible} and ${description}]`;
     return (await this.elements(byDescription))[0] ?? (await this.elements(this.selector(text, contains)))[0];
   }
-  private async dismissNotificationPermission() {
-    const prompt = `//*[@displayed='true' and contains(@resource-id,':id/permission_message') and contains(@text,'Onze') and (contains(@text,'notifications') or contains(@text,'notificações'))]`;
-    const notificationRequest = await this.elements(prompt);
-    if (!notificationRequest.length) return;
-    // Exercise the OS denial path, keeping the emulator independent of real
-    // Expo/FCM registration. Push delivery remains in the backend boundary suite.
-    const buttons = await this.elements(`//*[@displayed='true' and contains(@resource-id,':id/permission_deny') and @clickable='true']`);
-    if (buttons[0]) {
-      this.evidence.assertions++;
-      await this.click(buttons[0]);
-      await expect.poll(async () => (await this.elements(prompt)).length).toBe(0);
-      // The app requests permission again when matches refresh. Preserve the
-      // UI denial as a fixed emulator fixture, avoiding another asynchronous
-      // OS prompt over the next app action or real Expo/FCM registration.
-      execFileSync('adb', ['shell', 'pm', 'set-permission-flags', appPackage,
-        'android.permission.POST_NOTIFICATIONS', 'user-set', 'user-fixed'], { timeout: 10_000 });
-      this.notificationPermissionHandled = true;
-    }
-  }
-  private async settleNotificationPermission() {
-    // Home renders before its async notification permission request. Finish
-    // this OS interaction before the next tap can be swallowed by the prompt.
-    const deadline = Date.now() + 5_000;
-    while (!this.notificationPermissionHandled && Date.now() < deadline) {
-      await this.dismissNotificationPermission();
-      if (!this.notificationPermissionHandled) await new Promise(resolve => setTimeout(resolve, 200));
-    }
-  }
   async scroll(direction: 'up' | 'down' = 'down') {
-    await this.dismissNotificationPermission();
     const before: string = await this.command(this.path('/source'));
     if (!before.includes(`package="${appPackage}"`)) throw new Error('Android left Onze before scrolling; inspect native crash log');
     this.beforeScroll = before;
@@ -272,12 +248,10 @@ export class Android {
     await this.fill('E-mail', actor.user.email);
     await this.fill('Senha', password);
     await this.tap('Entrar');
-    await this.settleNotificationPermission();
   }
   async login(actor: Actor) {
     await this.signIn(actor);
     await this.has(`Olá, ${actor.user.displayName}`);
-    await this.settleNotificationPermission();
   }
   async tabs() {
     for (const label of ['Home', 'Grupos', 'Configurações']) await this.has(label);

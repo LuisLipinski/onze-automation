@@ -1,7 +1,7 @@
 import { appendFileSync } from 'node:fs';
 
-// The versioned artifact name is the build recipe contract: bump v1 when the
-// emulator ABI, API URL, environment or generated-manifest recipe changes.
+// The versioned artifact name is the build recipe contract: bump its version
+// when the emulator ABI, API URL, environment or provider/manifest config changes.
 const repository = process.env.GITHUB_REPOSITORY;
 const name = process.env.EMULATOR_ARTIFACT_NAME;
 if (!repository || !name || !process.env.GITHUB_TOKEN || !process.env.GITHUB_OUTPUT) throw new Error('GitHub artifact lookup environment missing');

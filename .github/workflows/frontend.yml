@@ -33,11 +33,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
-      artifact_name: onze-emulator-v1-${{ steps.mobile.outputs.sha }}
+      artifact_name: onze-emulator-v2-${{ steps.mobile.outputs.sha }}
     env:
       CI: true
       EXPO_PUBLIC_API_URL: http://10.0.2.2:8080
       EXPO_PUBLIC_ENV: development
+      EXPO_PUBLIC_EAS_PROJECT_ID: ''
     steps:
       - uses: actions/checkout@v7
         with:
@@ -56,19 +57,19 @@ jobs:
         id: apk-cache
         with:
           path: .runtime/apk
-          key: onze-emulator-apk-v1-${{ steps.mobile.outputs.sha }}
+          key: onze-emulator-apk-v2-${{ steps.mobile.outputs.sha }}
       - name: Find previous verified build for this source and recipe
         if: steps.apk-cache.outputs.cache-hit != 'true'
         id: previous
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          EMULATOR_ARTIFACT_NAME: onze-emulator-v1-${{ steps.mobile.outputs.sha }}
+          EMULATOR_ARTIFACT_NAME: onze-emulator-v2-${{ steps.mobile.outputs.sha }}
         run: node scripts/find-emulator-apk.mjs
       - name: Download previous verified emulator build
         if: steps.previous.outputs.run_id
         uses: actions/download-artifact@v6
         with:
-          name: onze-emulator-v1-${{ steps.mobile.outputs.sha }}
+          name: onze-emulator-v2-${{ steps.mobile.outputs.sha }}
           run-id: ${{ steps.previous.outputs.run_id }}
           github-token: ${{ github.token }}
           path: .runtime/apk
@@ -102,14 +103,34 @@ jobs:
         if: steps.existing.outputs.ready != 'true'
         working-directory: mobile-source
         run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('app.json')
+          config = json.loads(path.read_text())
+          # Isolate the remote push provider in this disposable emulator build.
+          # Functional app code and local notification handling remain real.
+          config['expo'].setdefault('extra', {}).pop('eas', None)
+          path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + '\n')
+          PY
           npx expo prebuild --platform android --clean
           python3 - <<'PY'
           from pathlib import Path
+          import xml.etree.ElementTree as ET
           manifest = Path('android/app/src/main/AndroidManifest.xml')
-          text = manifest.read_text()
-          # Loopback API only in the disposable emulator build; no app source changes.
-          text = text.replace('<application ', '<application android:usesCleartextTraffic="true" ', 1)
-          manifest.write_text(text)
+          android = '{http://schemas.android.com/apk/res/android}'
+          ET.register_namespace('android', android[1:-1])
+          ET.register_namespace('tools', 'http://schemas.android.com/tools')
+          tree = ET.parse(manifest)
+          app = tree.getroot().find('application')
+          # Loopback API and isolated providers only in this emulator recipe.
+          app.set(android + 'usesCleartextTraffic', 'true')
+          for name in ['firebase_messaging_auto_init_enabled', 'firebase_analytics_collection_enabled']:
+            node = next((n for n in app.findall('meta-data') if n.get(android + 'name') == name), None)
+            if node is None:
+              node = ET.SubElement(app, 'meta-data', {android + 'name': name})
+            node.set(android + 'value', 'false')
+          tree.write(manifest, encoding='utf-8', xml_declaration=True)
           PY
           cd android
           ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --max-workers=2
@@ -120,11 +141,20 @@ jobs:
             cp mobile-source/android/app/build/outputs/apk/release/app-release.apk .runtime/apk/onze-automation-emulator.apk
           fi
           "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose .runtime/apk/onze-automation-emulator.apk
+          python3 - <<'PY'
+          import json, zipfile
+          with zipfile.ZipFile('.runtime/apk/onze-automation-emulator.apk') as apk:
+            config = json.loads(apk.read('assets/app.config'))
+          config = config.get('expo', config)
+          assert not config.get('extra', {}).get('eas', {}).get('projectId'), 'Emulator APK contains a remote EAS project'
+          print('Verified emulator provider isolation: EAS project omitted')
+          PY
           sha256sum .runtime/apk/onze-automation-emulator.apk > .runtime/apk/SHA256SUMS
           git -C mobile-source rev-parse HEAD > .runtime/apk/mobile-revision.txt
+          echo '{"recipe":2,"remotePush":"EAS project omitted; FCM auto-init disabled","notificationPermission":"granted in emulator fixture"}' > .runtime/apk/emulator-recipe.json
       - uses: actions/upload-artifact@v6
         with:
-          name: onze-emulator-v1-${{ steps.mobile.outputs.sha }}
+          name: onze-emulator-v2-${{ steps.mobile.outputs.sha }}
           include-hidden-files: true
           path: .runtime/apk/
           retention-days: 7
@@ -238,6 +268,7 @@ jobs:
             .runtime/*-source.json
             .runtime/apk/mobile-revision.txt
             .runtime/apk/SHA256SUMS
+            .runtime/apk/emulator-recipe.json
           retention-days: 14
 
   coverage:
