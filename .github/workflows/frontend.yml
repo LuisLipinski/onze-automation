@@ -24,6 +24,10 @@ permissions:
   contents: read
   actions: read
 
+concurrency:
+  group: android-ui-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -132,7 +136,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
     services:
       postgres:
         image: postgres:18
@@ -219,7 +223,7 @@ jobs:
             adb shell wm density 360
             timeout 60 adb wait-for-device
             for attempt in $(seq 1 20); do adb shell cmd activity get-current-user >/dev/null 2>&1 && break; sleep 1; done
-            npm run frontend:test -- --shard=${{ matrix.shard }}/4 --grep="${FRONTEND_FILTER:-.}"
+            npm run frontend:test -- --shard=${{ matrix.shard }}/8 --grep="${FRONTEND_FILTER:-.}"
       - name: Publish native evidence
         if: always()
         uses: actions/upload-artifact@v6

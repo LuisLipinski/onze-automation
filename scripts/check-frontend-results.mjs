@@ -6,7 +6,7 @@ function reports(dir) {
   return readdirSync(dir, { withFileTypes: true }).flatMap(entry => entry.isDirectory() ? reports(resolve(dir, entry.name)) : /^frontend-shard-.*\.json$/.test(entry.name) ? [resolve(dir, entry.name)] : []);
 }
 const runs = reports('.runtime/android-shards').map(path => JSON.parse(readFileSync(path, 'utf8')));
-if (runs.length !== 4) throw new Error(`Expected all four Android shards, got ${runs.length}`);
+if (runs.length !== 8) throw new Error(`Expected all eight Android shards, got ${runs.length}`);
 const cases = runs.flatMap(run => run.cases);
 const valid = cases.filter(test => test.status === 'passed' && test.evidence?.native && test.evidence.assertions > 0 && test.evidence.commands > 0);
 const covered = new Set(valid.map(test => test.id));

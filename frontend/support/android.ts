@@ -1,4 +1,5 @@
 import { expect, type TestInfo } from '@playwright/test';
+import { execFileSync } from 'node:child_process';
 import { type Actor, password } from '../../tests/support/factory';
 
 const appPackage = 'com.onze.organizadordepelada';
@@ -17,6 +18,7 @@ export class Android {
   private session = '';
   private viewport: Rect = { x: 0, y: 0, width: 0, height: 0 };
   private notificationPermissionHandled = false;
+  private beforeScroll = '';
   private evidence: Evidence = { native: true, commands: 0, assertions: 0, screens: [] };
   private readonly server = 'http://127.0.0.1:4723';
 
@@ -42,7 +44,7 @@ export class Android {
       platformName: 'Android', 'appium:automationName': 'UiAutomator2',
       'appium:app': apk, 'appium:appPackage': appPackage,
       'appium:appActivity': '.MainActivity', 'appium:noReset': true,
-      'appium:autoGrantPermissions': true, 'appium:newCommandTimeout': 240,
+      'appium:autoGrantPermissions': false, 'appium:newCommandTimeout': 240,
       'appium:adbExecTimeout': 60_000, 'appium:uiautomator2ServerInstallTimeout': 90_000,
       'appium:disableWindowAnimation': true,
       'appium:showLogcat': true,
@@ -59,7 +61,10 @@ export class Android {
   }
   async stop() { if (this.session) await this.command(this.path(''), undefined, 'DELETE'); }
   async reset(beginTest = false) {
-    if (beginTest) this.evidence = { native: true, commands: 0, assertions: 0, screens: [] };
+    if (beginTest) {
+      this.evidence = { native: true, commands: 0, assertions: 0, screens: [] };
+      this.beforeScroll = '';
+    }
     // Close any OS chooser or shade left by a failed test before restarting.
     await this.back();
     await this.execute('mobile: terminateApp', { appId: appPackage });
@@ -111,6 +116,11 @@ export class Android {
       this.evidence.assertions++;
       await this.click(buttons[0]);
       await expect.poll(async () => (await this.elements(prompt)).length).toBe(0);
+      // The app requests permission again when matches refresh. Preserve the
+      // UI denial as a fixed emulator fixture, avoiding another asynchronous
+      // OS prompt over the next app action or real Expo/FCM registration.
+      execFileSync('adb', ['shell', 'pm', 'set-permission-flags', appPackage,
+        'android.permission.POST_NOTIFICATIONS', 'user-set', 'user-fixed'], { timeout: 10_000 });
       this.notificationPermissionHandled = true;
     }
   }
@@ -124,7 +134,10 @@ export class Android {
     }
   }
   async scroll(direction: 'up' | 'down' = 'down') {
+    await this.dismissNotificationPermission();
     const before: string = await this.command(this.path('/source'));
+    if (!before.includes(`package="${appPackage}"`)) throw new Error('Android left Onze before scrolling; inspect native crash log');
+    this.beforeScroll = before;
     if (!before.includes('scrollable="true"')) return false;
     const { width, height } = this.viewport;
     const x = Math.round(width * 0.85);
@@ -140,6 +153,7 @@ export class Android {
       { type: 'pointerUp', button: 0 },
     ]);
     const after: string = await this.command(this.path('/source'));
+    if (!after.includes(`package="${appPackage}"`)) throw new Error('Android left Onze during scrolling; inspect native crash log');
     // Geometry changes when the page moves; live clock text does not count.
     const bounds = (source: string) => source.match(/\bbounds="[^"]*"/g)?.join();
     return bounds(before) !== bounds(after);
@@ -307,6 +321,16 @@ export class Android {
       if (info.status !== info.expectedStatus) {
         const xml = await this.command(this.path('/source')).catch(String);
         await info.attach('android-hierarchy', { body: xml, contentType: 'application/xml' });
+        if (this.beforeScroll) await info.attach('android-before-scroll-hierarchy', { body: this.beforeScroll, contentType: 'application/xml' });
+        for (const [name, args] of [
+          ['android-crash-log', ['logcat', '-d', '-b', 'crash', '-v', 'threadtime']],
+          ['android-app-log', ['logcat', '-d', '-v', 'threadtime', 'ReactNativeJS:V', 'AndroidRuntime:V', 'ActivityTaskManager:I', 'ActivityManager:I', 'libc:E', '*:S']],
+        ] as const) {
+          let log: string;
+          try { log = execFileSync('adb', [...args], { encoding: 'utf8', timeout: 10_000, maxBuffer: 4 * 1024 * 1024 }); }
+          catch (error) { log = String(error); }
+          await info.attach(name, { body: log, contentType: 'text/plain' });
+        }
       }
     }
   }
