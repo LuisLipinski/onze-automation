@@ -6,6 +6,7 @@ const elementKey = 'element-6066-11e4-a52e-4f735466cecf';
 type Element = Record<typeof elementKey, string>;
 type Evidence = { native: true; commands: number; assertions: number; screens: string[] };
 type Rect = { x: number; y: number; width: number; height: number };
+type AndroidWindow = { windowId: number; layer: number; rect: { left: number; top: number; right: number; bottom: number } };
 
 function literal(value: string) {
   if (!value.includes("'")) return `'${value}'`;
@@ -16,6 +17,7 @@ function literal(value: string) {
 export class Android {
   private session = '';
   private viewport: Rect = { x: 0, y: 0, width: 0, height: 0 };
+  private windowId = -1;
   private evidence: Evidence = { native: true, commands: 0, assertions: 0, screens: [] };
   private readonly server = 'http://127.0.0.1:4723';
 
@@ -76,21 +78,30 @@ export class Android {
       : `@text=${literal(text)} or @content-desc=${literal(text)}`;
   }
   private selector(text: string, contains = false) {
-    return `//*[@package='${appPackage}' and @displayed='true' and (${this.condition(text, contains)})]`;
+    return `//*[@package='${appPackage}' and @window-id='${this.windowId}' and @displayed='true' and (${this.condition(text, contains)})]`;
   }
   async elements(selector: string): Promise<Element[]> {
     return this.command(this.path('/elements'), { using: 'xpath', value: selector });
   }
   async find(text: string, contains = false, action = false) {
     await this.dismissNotificationPermission();
+    const windows: AndroidWindow[] = await this.execute('mobile: listWindows', {
+      filters: { packageName: appPackage }, skipScreenshots: true,
+    });
+    const topmost = windows.filter(w => w.rect.right > w.rect.left && w.rect.bottom > w.rect.top)
+      .sort((a, b) => b.layer - a.layer)[0];
+    this.windowId = topmost?.windowId ?? -1;
+    // A modal and its underlying page may have buttons with the same name.
+    // Target the highest visible app window, independent of XML root order.
+    const visible = `@package='${appPackage}' and @window-id='${this.windowId}' and @displayed='true'`;
     if (action) {
       const condition = this.condition(text, contains);
-      const direct = await this.elements(`//*[@package='${appPackage}' and @displayed='true' and @clickable='true' and (${condition})]`);
+      const direct = await this.elements(`//*[${visible} and @clickable='true' and (${condition})]`);
       if (direct.length) return direct.at(-1);
-      return (await this.elements(`${this.selector(text, contains)}/ancestor::*[@package='${appPackage}' and @displayed='true' and @clickable='true'][1]`)).at(-1);
+      return (await this.elements(`${this.selector(text, contains)}/ancestor::*[${visible} and @clickable='true'][1]`)).at(-1);
     }
     const description = contains ? `contains(@content-desc,${literal(text)})` : `@content-desc=${literal(text)}`;
-    const byDescription = `//*[@package='${appPackage}' and @displayed='true' and ${description}]`;
+    const byDescription = `//*[${visible} and ${description}]`;
     return (await this.elements(byDescription))[0] ?? (await this.elements(this.selector(text, contains)))[0];
   }
   private async dismissNotificationPermission() {
