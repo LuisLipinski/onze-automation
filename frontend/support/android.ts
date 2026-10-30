@@ -6,7 +6,6 @@ const elementKey = 'element-6066-11e4-a52e-4f735466cecf';
 type Element = Record<typeof elementKey, string>;
 type Evidence = { native: true; commands: number; assertions: number; screens: string[] };
 type Rect = { x: number; y: number; width: number; height: number };
-type AndroidWindow = { windowId: number; layer: number; rect: { left: number; top: number; right: number; bottom: number } };
 
 function literal(value: string) {
   if (!value.includes("'")) return `'${value}'`;
@@ -17,7 +16,7 @@ function literal(value: string) {
 export class Android {
   private session = '';
   private viewport: Rect = { x: 0, y: 0, width: 0, height: 0 };
-  private windowId = -1;
+  private notificationPermissionHandled = false;
   private evidence: Evidence = { native: true, commands: 0, assertions: 0, screens: [] };
   private readonly server = 'http://127.0.0.1:4723';
 
@@ -65,6 +64,7 @@ export class Android {
     await this.back();
     await this.execute('mobile: terminateApp', { appId: appPackage });
     await this.execute('mobile: clearApp', { appId: appPackage });
+    this.notificationPermissionHandled = false;
     await this.execute('mobile: activateApp', { appId: appPackage });
     await this.has('E-mail');
   }
@@ -78,27 +78,23 @@ export class Android {
       : `@text=${literal(text)} or @content-desc=${literal(text)}`;
   }
   private selector(text: string, contains = false) {
-    return `//*[@package='${appPackage}' and @window-id='${this.windowId}' and @displayed='true' and (${this.condition(text, contains)})]`;
+    return `//*[@package='${appPackage}' and @displayed='true' and (${this.condition(text, contains)})]`;
   }
   async elements(selector: string): Promise<Element[]> {
     return this.command(this.path('/elements'), { using: 'xpath', value: selector });
   }
   async find(text: string, contains = false, action = false) {
     await this.dismissNotificationPermission();
-    const windows: AndroidWindow[] = await this.execute('mobile: listWindows', {
-      filters: { packageName: appPackage }, skipScreenshots: true,
-    });
-    const topmost = windows.filter(w => w.rect.right > w.rect.left && w.rect.bottom > w.rect.top)
-      .sort((a, b) => b.layer - a.layer)[0];
-    this.windowId = topmost?.windowId ?? -1;
-    // A modal and its underlying page may have buttons with the same name.
-    // Target the highest visible app window, independent of XML root order.
-    const visible = `@package='${appPackage}' and @window-id='${this.windowId}' and @displayed='true'`;
+    const visible = `@package='${appPackage}' and @displayed='true'`;
     if (action) {
       const condition = this.condition(text, contains);
-      const direct = await this.elements(`//*[${visible} and @clickable='true' and (${condition})]`);
+      const direct = await this.elements(`//*[${visible} and @enabled='true' and @clickable='true' and (${condition})]`);
       if (direct.length) return direct.at(-1);
-      return (await this.elements(`${this.selector(text, contains)}/ancestor::*[${visible} and @clickable='true'][1]`)).at(-1);
+      const parents = await this.elements(`${this.selector(text, contains)}/ancestor::*[${visible} and @enabled='true' and @clickable='true'][1]`);
+      if (parents.length) return parents.at(-1);
+      // Android's clock exposes virtual hour/minute controls as non-clickable
+      // accessibility nodes. They still support a physical touch at their bounds.
+      return (await this.elements(`${this.selector(text, contains)}[starts-with(@class,'android.widget.RadialTimePickerView$')]`))[0];
     }
     const description = contains ? `contains(@content-desc,${literal(text)})` : `@content-desc=${literal(text)}`;
     const byDescription = `//*[${visible} and ${description}]`;
@@ -115,6 +111,16 @@ export class Android {
       this.evidence.assertions++;
       await this.click(buttons[0]);
       await expect.poll(async () => (await this.elements(prompt)).length).toBe(0);
+      this.notificationPermissionHandled = true;
+    }
+  }
+  private async settleNotificationPermission() {
+    // Home renders before its async notification permission request. Finish
+    // this OS interaction before the next tap can be swallowed by the prompt.
+    const deadline = Date.now() + 5_000;
+    while (!this.notificationPermissionHandled && Date.now() < deadline) {
+      await this.dismissNotificationPermission();
+      if (!this.notificationPermissionHandled) await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
   async scroll(direction: 'up' | 'down' = 'down') {
@@ -167,7 +173,16 @@ export class Android {
     }
   }
   private async click(element: Element) {
-    const rect: Rect = await this.command(this.path(`/element/${element[elementKey]}/rect`));
+    const path = this.path(`/element/${element[elementKey]}/rect`);
+    let rect: Rect = await this.command(path);
+    // Switches, keyboard dismissal and modals can move the target during a
+    // React Native layout pass. Wait for its bounds before sending one touch.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const next: Rect = await this.command(path);
+      if (JSON.stringify(next) === JSON.stringify(rect)) break;
+      rect = next;
+    }
     const x = Math.round(rect.x + rect.width / 2);
     const y = Math.round(rect.y + rect.height / 2);
     if (rect.width <= 0 || rect.height <= 0 || x < 0 || x >= this.viewport.width || y < 0 || y >= this.viewport.height) {
@@ -243,10 +258,12 @@ export class Android {
     await this.fill('E-mail', actor.user.email);
     await this.fill('Senha', password);
     await this.tap('Entrar');
+    await this.settleNotificationPermission();
   }
   async login(actor: Actor) {
     await this.signIn(actor);
     await this.has(`Olá, ${actor.user.displayName}`);
+    await this.settleNotificationPermission();
   }
   async tabs() {
     for (const label of ['Home', 'Grupos', 'Configurações']) await this.has(label);
