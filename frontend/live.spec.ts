@@ -274,7 +274,9 @@ test('[UI-L14] cobranças alternadas definem vencedor e confirmação encerra di
   for (const teamNumber of [1, 2]) {
     const player = g.assignments.find(a => a.teamNumber === teamNumber);
     for (let kick = 1; kick <= 5; kick++) {
-      await ui.tap(`${kick}º — Selecionar jogador`);
+      // Fill the first unassigned team before the identically labelled rows
+      // belonging to the second team.
+      await ui.tap(`${kick}º — Selecionar jogador`, false, 'first');
       await ui.tap(player.displayName);
     }
   }

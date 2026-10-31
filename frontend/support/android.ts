@@ -94,14 +94,14 @@ export class Android {
   async elements(selector: string): Promise<Element[]> {
     return this.command(this.path('/elements'), { using: 'xpath', value: selector });
   }
-  async find(text: string, contains = false, action = false) {
+  async find(text: string, contains = false, action = false, occurrence: 'first' | 'last' = 'last') {
     const visible = `@package='${appPackage}' and @displayed='true'`;
     if (action) {
       const condition = this.condition(text, contains);
       const direct = await this.elements(`//*[${visible} and @clickable='true' and (${condition})]`);
-      if (direct.length) return direct.at(-1);
+      if (direct.length) return direct.at(occurrence === 'first' ? 0 : -1);
       const parents = await this.elements(`${this.selector(text, contains)}/ancestor::*[${visible} and @clickable='true'][1]`);
-      if (parents.length) return parents.at(-1);
+      if (parents.length) return parents.at(occurrence === 'first' ? 0 : -1);
       // Android's clock exposes virtual hour/minute controls as non-clickable
       // accessibility nodes. They still support a physical touch at their bounds.
       return (await this.elements(`${this.selector(text, contains)}[starts-with(@class,'android.widget.RadialTimePickerView$')]`))[0];
@@ -114,11 +114,17 @@ export class Android {
     const before: string = await this.command(this.path('/source'));
     if (!before.includes(`package="${appPackage}"`)) throw new Error('Android left Onze before scrolling; inspect native crash log');
     this.beforeScroll = before;
-    if (!before.includes('scrollable="true"')) return false;
-    const { width, height } = this.viewport;
-    const x = Math.round(width * 0.85);
-    const top = Math.round(height * 0.28);
-    const bottom = Math.round(height * 0.78);
+    const containers = [...before.matchAll(/<[^/!?][^>]*\bscrollable="true"[^>]*>/g)]
+      .map(match => match[0])
+      .filter(tag => tag.includes(`package="${appPackage}"`) && !tag.includes('HorizontalScrollView'));
+    const bounds = containers.at(-1)?.match(/\bbounds="\[(\d+),(\d+)\]\[(\d+),(\d+)\]"/);
+    if (!bounds) return false;
+    const [, left, upper, right, lower] = bounds.map(Number);
+    // Start in the scroll view's gutter. Inputs and switches can consume a
+    // gesture that begins inside their own bounds, especially on long forms.
+    const x = Math.round(left + Math.min(22, (right - left) * 0.04));
+    const top = Math.round(upper + (lower - upper) * 0.15);
+    const bottom = Math.round(upper + (lower - upper) * 0.85);
     // Use a bounded finger movement instead of a cached scroll-container
     // handle or scrollGesture's unreliable canScrollMore result on RN views.
     await this.touch([
@@ -131,35 +137,50 @@ export class Android {
     const after: string = await this.command(this.path('/source'));
     if (!after.includes(`package="${appPackage}"`)) throw new Error('Android left Onze during scrolling; inspect native crash log');
     // Geometry changes when the page moves; live clock text does not count.
-    const bounds = (source: string) => source.match(/\bbounds="[^"]*"/g)?.join();
-    return bounds(before) !== bounds(after);
+    return this.geometry(before) !== this.geometry(after);
   }
-  async seek(text: string, contains = false, action = false): Promise<Element> {
+  private geometry(source: string) { return source.match(/\bbounds="[^"]*"/g)?.join(); }
+  private async settle() {
+    // A scroll can keep moving after pointerUp. Cached element rectangles
+    // alone do not detect that motion; compare fresh hierarchy snapshots.
+    let previous = '';
+    let stable = 0;
+    for (let attempt = 0; attempt < 12; attempt++) {
+      await new Promise(resolve => setTimeout(resolve, 200));
+      const source: string = await this.command(this.path('/source'));
+      const current = this.geometry(source) ?? '';
+      stable = current === previous ? stable + 1 : 0;
+      if (stable >= 2) return;
+      previous = current;
+    }
+    throw new Error('Android layout did not settle after native touch');
+  }
+  async seek(text: string, contains = false, action = false, occurrence: 'first' | 'last' = 'last'): Promise<Element> {
     // Allow asynchronous requests/navigation to settle before moving the screen.
     for (let i = 0; i < 8; i++) {
-      const element = await this.find(text, contains, action);
+      const element = await this.find(text, contains, action, occurrence);
       if (element) return element;
       await new Promise(resolve => setTimeout(resolve, 250));
     }
     for (const direction of ['down', 'up', 'down'] as const) {
       for (let i = 0; i < 13; i++) {
         const more = await this.scroll(direction);
-        const element = await this.find(text, contains, action);
+        const element = await this.find(text, contains, action, occurrence);
         if (element) return element;
         if (!more) break;
       }
     }
     throw new Error(`Android element not found: ${text}`);
   }
-  async tap(text: string, contains = false) {
+  async tap(text: string, contains = false, occurrence: 'first' | 'last' = 'last') {
     // Continue scrolling past a matching heading until its action is visible.
-    const element = await this.seek(text, contains, true);
+    const element = await this.seek(text, contains, true, occurrence);
     try { await this.click(element); }
     catch (error) {
       if (!(error instanceof Error) || !error.message.includes('stale element reference')) throw error;
       // Stale means Android rejected the input before performing it. Re-query
       // only this stale handle; never repeat a timed-out or successful action.
-      await this.click(await this.seek(text, contains, true));
+      await this.click(await this.seek(text, contains, true, occurrence));
     }
   }
   private async click(element: Element) {
@@ -191,6 +212,7 @@ export class Android {
     await this.command(this.path('/actions'), { actions: [{
       type: 'pointer', id: 'finger', parameters: { pointerType: 'touch' }, actions,
     }] });
+    await this.settle();
   }
   async tapLast(text: string) {
     await this.seek(text);
@@ -222,6 +244,7 @@ export class Android {
       }
     }
     await this.execute('mobile: hideKeyboard').catch(() => undefined);
+    await this.settle();
   }
   async has(text: string, contains = false, timeout = 20_000) {
     this.evidence.assertions++;

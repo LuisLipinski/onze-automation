@@ -55,10 +55,19 @@ test('[UI-M03] presença confirma, desabilita repetição e permite liberar vaga
   await ui.disabled('✓ Vou jogar');
   expect((await getMatch(request, match.id, g.members[0])).myAttendance).toBe('GOING');
   await ui.tap('Não vou');
+  // A free game releases the spot immediately. Paid games require the dialog.
+  await expect.poll(async () => (await getMatch(request, match.id, g.members[0])).myAttendance).toBe('NOT_GOING');
+  await ui.disabled('Não vou');
+  await ui.absent('Confirmar que não vai?');
+  const paid = await createMatch(request, control, g.id, g.owner, { paymentRequired: true, goalkeeperPays: true });
+  await ui.open('match', { matchId: paid.id });
+  await ui.tap('✓ Vou jogar');
+  await expect.poll(async () => (await getMatch(request, paid.id, g.members[0])).myAttendance).toBe('GOING');
+  await ui.tap('Não vou');
   await ui.has('Confirmar que não vai?');
   await ui.tap('Liberar minha vaga');
   await ui.disabled('Não vou');
-  expect((await getMatch(request, match.id, g.members[0])).myAttendance).toBe('NOT_GOING');
+  expect((await getMatch(request, paid.id, g.members[0])).myAttendance).toBe('NOT_GOING');
 });
 
 test('[UI-M04] próxima ocorrência semanal tem presença fechada e independente', async ({ ui, request, control }) => {
@@ -109,6 +118,8 @@ test('[UI-M06] convidado é criado pela interface e aparece na lista', async ({ 
 test('[UI-M07] cancelar ocorrência semanal preserva as demais', async ({ ui, request, control }) => {
   const g = await group(request, 0);
   const match = await createMatch(request, control, g.id, g.owner, { recurrence: 'WEEKLY' });
+  const before = await body(await request.get(`/api/groups/${g.id}/matches`, { headers: auth(g.owner) }));
+  expect(before).toHaveLength(4);
   await ui.login(g.owner);
   await ui.open('match', { matchId: match.id });
   await ui.tap('Cancelar somente este jogo');
@@ -119,7 +130,14 @@ test('[UI-M07] cancelar ocorrência semanal preserva as demais', async ({ ui, re
   await ui.tap('Cancelar jogo');
   await expect.poll(async () => (await getMatch(request, match.id, g.owner)).status).toBe('CANCELLED');
   const matches = await body(await request.get(`/api/groups/${g.id}/matches`, { headers: auth(g.owner) }));
-  expect(matches.filter((m: any) => m.status === 'SCHEDULED')).toHaveLength(3);
+  expect(matches.filter((m: any) => m.status === 'SCHEDULED')).toHaveLength(4);
+  // The active series replenishes its four upcoming games. Every original
+  // occurrence other than the cancelled one must retain its date and status.
+  for (const original of before.filter((m: any) => m.id !== match.id)) {
+    expect(matches.find((m: any) => m.id === original.id)).toMatchObject({
+      status: 'SCHEDULED', startsAt: original.startsAt, seriesId: original.seriesId,
+    });
+  }
   await ui.sees('Jogo cancelado');
 });
 
