@@ -94,6 +94,17 @@ export class Android {
   async elements(selector: string): Promise<Element[]> {
     return this.command(this.path('/elements'), { using: 'xpath', value: selector });
   }
+  async scrollToText(text: string) {
+    // UiScrollable owns the native ScrollView's scrolling sequence. Use it
+    // for long Android picker lists nested inside React Native pressables.
+    const selector = `new UiScrollable(new UiSelector().packageName(${JSON.stringify(appPackage)}).scrollable(true))`
+      + `.setAsVerticalList().setMaxSearchSwipes(16).scrollIntoView(new UiSelector().packageName(${JSON.stringify(appPackage)}).text(${JSON.stringify(text)}))`;
+    this.evidence.commands++;
+    const matches: Element[] = await this.command(this.path('/elements'), { using: '-android uiautomator', value: selector });
+    await this.settle();
+    this.evidence.assertions++;
+    expect(matches.length, `Android scrolls picker to ${text}`).toBeGreaterThan(0);
+  }
   async find(text: string, contains = false, action = false, occurrence: 'first' | 'last' = 'last') {
     const visible = `@package='${appPackage}' and @displayed='true'`;
     if (action) {
@@ -122,28 +133,18 @@ export class Android {
     const [, left, upper, right, lower] = bounds.map(Number);
     // Start in the scroll view's gutter. Inputs and switches can consume a
     // gesture that begins inside their own bounds, especially on long forms.
+    const x = Math.round(left + Math.min(22, (right - left) * 0.04));
     const top = Math.round(upper + (lower - upper) * 0.15);
     const bottom = Math.round(upper + (lower - upper) * 0.85);
     // Use a bounded finger movement instead of a cached scroll-container
     // handle or scrollGesture's unreliable canScrollMore result on RN views.
-    if (left > 0 && right < this.viewport.width) {
-      // React Native's position picker nests its list inside a Pressable.
-      // Swipe through the list's centre, inside the foreground modal bounds.
-      await this.execute('mobile: swipeGesture', {
-        left, top: upper, width: right - left, height: lower - upper,
-        direction: direction === 'down' ? 'up' : 'down', percent: 0.7, speed: 1500,
-      });
-      await this.settle();
-    } else {
-      const x = Math.round(left + Math.min(22, (right - left) * 0.04));
-      await this.touch([
-        { type: 'pointerMove', duration: 0, x, y: direction === 'down' ? bottom : top },
-        { type: 'pointerDown', button: 0 },
-        { type: 'pause', duration: 100 },
-        { type: 'pointerMove', duration: 500, x, y: direction === 'down' ? top : bottom },
-        { type: 'pointerUp', button: 0 },
-      ]);
-    }
+    await this.touch([
+      { type: 'pointerMove', duration: 0, x, y: direction === 'down' ? bottom : top },
+      { type: 'pointerDown', button: 0 },
+      { type: 'pause', duration: 100 },
+      { type: 'pointerMove', duration: 500, x, y: direction === 'down' ? top : bottom },
+      { type: 'pointerUp', button: 0 },
+    ]);
     const after: string = await this.command(this.path('/source'));
     if (!after.includes(`package="${appPackage}"`)) throw new Error('Android left Onze during scrolling; inspect native crash log');
     // Geometry changes when the page moves; live clock text does not count.

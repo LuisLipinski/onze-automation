@@ -10,6 +10,7 @@ test('[UI-P01] perfil esportivo salva posições, goleiro e pé dominante', asyn
   await ui.tap('Meio-campo', true);
   await ui.tap('Deseja adicionar uma segunda posição?');
   await ui.tap('Segunda posição', true);
+  await ui.scrollToText('Atacante');
   await ui.tap('Atacante');
   await ui.tap('Posso jogar no gol quando necessário');
   await ui.tap('Esquerdo');
