@@ -26,6 +26,7 @@ public class AutomationApplication {
     static final AtomicReference<Instant> NOW = new AtomicReference<>(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
     static final List<Map<String, String>> EMAILS = new CopyOnWriteArrayList<>();
     static final List<Object> PUSHES = new CopyOnWriteArrayList<>();
+    static final Map<String, byte[]> MEDIA = new ConcurrentHashMap<>();
     static final Queue<Map<String, Object>> EXPO_REPLIES = new ConcurrentLinkedQueue<>();
     static final AtomicReference<Map<String, Object>> EXPO_DEFAULT_REPLY = new AtomicReference<>();
     static volatile boolean failMedia;
@@ -49,6 +50,15 @@ public class AutomationApplication {
         server.createContext("/", exchange -> {
             try {
                 String path = exchange.getRequestURI().getPath();
+                if (path.startsWith("/media/") && exchange.getRequestMethod().equals("GET")) {
+                    byte[] content = MEDIA.get(path.substring("/media".length()));
+                    if (content == null) { respond(exchange, json, 404, Map.of("error", "media not found")); return; }
+                    exchange.getResponseHeaders().set("Content-Type", content[0] == (byte) 0xFF ? "image/jpeg" : "image/png");
+                    exchange.sendResponseHeaders(200, content.length);
+                    exchange.getResponseBody().write(content);
+                    exchange.close();
+                    return;
+                }
                 if (path.equals("/expo")) {
                     Object payload = json.readValue(exchange.getRequestBody().readAllBytes(), Object.class);
                     PUSHES.add(payload);
@@ -71,7 +81,7 @@ public class AutomationApplication {
                     case "/reset" -> {
                         List<String> tables = db.queryForList("select tablename from pg_tables where schemaname='public' and tablename <> 'flyway_schema_history'", String.class);
                         if (!tables.isEmpty()) db.execute("truncate table " + tables.stream().map(n -> "\"" + n.replace("\"", "\"\"") + "\"").collect(java.util.stream.Collectors.joining(",")) + " restart identity cascade");
-                        NOW.set(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS)); EMAILS.clear(); PUSHES.clear(); EXPO_REPLIES.clear(); EXPO_DEFAULT_REPLY.set(null);
+                        NOW.set(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS)); EMAILS.clear(); PUSHES.clear(); MEDIA.clear(); EXPO_REPLIES.clear(); EXPO_DEFAULT_REPLY.set(null);
                         failMedia = false; failEmail = false;
                         result = Map.of("now", NOW.get().toString());
                     }
@@ -81,6 +91,13 @@ public class AutomationApplication {
                     }
                     case "/emails" -> result = List.copyOf(EMAILS);
                     case "/pushes" -> result = List.copyOf(PUSHES);
+                    case "/media" -> result = MEDIA.entrySet().stream().map(entry -> {
+                        try {
+                            var image = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(entry.getValue()));
+                            return Map.of("path", entry.getKey(), "bytes", entry.getValue().length,
+                                    "width", image == null ? 0 : image.getWidth(), "height", image == null ? 0 : image.getHeight());
+                        } catch (java.io.IOException exception) { throw new IllegalStateException(exception); }
+                    }).toList();
                     case "/expo-plan" -> { EXPO_REPLIES.add(body); result = Map.of("queued", true); }
                     case "/expo-default" -> { EXPO_DEFAULT_REPLY.set(body); result = Map.of("configured", true); }
                     case "/boundaries" -> {
@@ -159,13 +176,17 @@ public class AutomationApplication {
             return (groupId, bytes) -> {
                 if (failMedia) throw new com.onze.api.group.GroupService.PhotoUploadFailedException();
                 if (bytes.length == 0) throw new IllegalArgumentException("empty media");
-                return "https://media.onze.test/groups/" + groupId + ".png";
+                String path = "/groups/" + groupId + ".png";
+                MEDIA.put(path, bytes.clone());
+                return System.getenv().getOrDefault("AUTOMATION_MEDIA_BASE_URL", "https://media.onze.test") + path;
             };
         }
         @Bean @Primary MatchTeamImageStorage capturedTeamPhotos() {
             return (groupId, type, side, bytes) -> {
                 if (failMedia) throw new IllegalStateException("simulated media provider failure");
-                return "https://media.onze.test/teams/" + groupId + "/" + type + "/" + side + ".png";
+                String path = "/teams/" + groupId + "/" + type + "/" + side + ".png";
+                MEDIA.put(path, bytes.clone());
+                return System.getenv().getOrDefault("AUTOMATION_MEDIA_BASE_URL", "https://media.onze.test") + path;
             };
         }
     }

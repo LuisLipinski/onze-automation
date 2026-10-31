@@ -1,5 +1,5 @@
 import { test, expect } from './support/test';
-import { auth, body, group, liveMatch } from './support/factory';
+import { auth, body, createMatch, generatedMatch, going, group, liveMatch } from './support/factory';
 
 test('[UI-S01] rankings mostram todas as métricas e critérios de desempate', async ({ ui, request, control }) => {
   const g = await liveMatch(request, control);
@@ -68,4 +68,44 @@ test('[UI-S04] estatísticas vazias e membro não pode iniciar temporada', async
   await ui.tap('Ver histórico');
   await ui.sees('SEU HISTÓRICO');
   await ui.tabs();
+});
+
+test('[UI-S05] posições reais do ranking desempataram gols por assistências e assistências por gols', async ({ ui, request, control }) => {
+  const g = await generatedMatch(request, control);
+  const [a, b] = g.assignments.filter(p => p.assignedRole !== 'GOALKEEPER');
+  await body(await request.put(`/api/matches/${g.match.id}/teams/assignments/${b.id}`, { headers: auth(g.owner), data: { teamNumber: a.teamNumber, assignedRole: 'PIVOT' } }));
+  const path = `/api/matches/${g.match.id}/live`;
+  await body(await request.put(path + '/start', { headers: auth(g.owner) }));
+  for (const data of [
+    { scorerAssignmentId: a.id, assistAssignmentId: b.id },
+    { scorerAssignmentId: a.id, assistAssignmentId: b.id },
+    { scorerAssignmentId: b.id, assistAssignmentId: a.id },
+    { scorerAssignmentId: b.id },
+  ]) await body(await request.post(path + '/goals', { headers: auth(g.owner), data: { ...data, penalty: false } }), 201);
+  await body(await request.put(path + '/finish', { headers: auth(g.owner) }));
+  await ui.login(g.owner);
+  await ui.open('group-statistics', { groupId: g.id });
+  await ui.tap('Artilharia');
+  await ui.rankedPlayer(1, b.displayName);
+  await ui.rankedPlayer(2, a.displayName);
+
+  const next = await createMatch(request, control, g.id, g.owner);
+  for (const actor of g.actors) await going(request, next.id, actor);
+  const generated = await body(await request.post(`/api/matches/${next.id}/teams/generate`, { headers: auth(g.owner) }));
+  const assignments = generated.teams.flatMap((t: any) => t.assignments.map((p: any) => ({ ...p, teamNumber: t.teamNumber })));
+  const nextA = assignments.find((p: any) => p.participantId === a.participantId);
+  const keeper = assignments.find((p: any) => p.assignedRole === 'GOALKEEPER' && p.teamNumber === nextA.teamNumber);
+  const secondPath = `/api/matches/${next.id}/live`;
+  await body(await request.put(secondPath + '/start', { headers: auth(g.owner) }));
+  await body(await request.post(secondPath + '/goals', { headers: auth(g.owner), data: { scorerAssignmentId: nextA.id, penalty: false } }), 201);
+  await body(await request.post(secondPath + '/goals', { headers: auth(g.owner), data: { scorerAssignmentId: keeper.id, assistAssignmentId: nextA.id, penalty: false } }), 201);
+  await body(await request.put(secondPath + '/finish', { headers: auth(g.owner) }));
+  const stats = await body(await request.get(`/api/groups/${g.id}/statistics`, { headers: auth(g.owner) }));
+  expect(stats.players.find((p: any) => p.userId === a.participantId).totals).toMatchObject({ goals: 3, assists: 2 });
+  expect(stats.players.find((p: any) => p.userId === b.participantId).totals).toMatchObject({ goals: 2, assists: 2 });
+  await ui.tap('Home');
+  await ui.open('group-statistics', { groupId: g.id });
+  await ui.tap('Assistências');
+  await ui.rankedPlayer(1, a.displayName);
+  await ui.rankedPlayer(2, b.displayName);
 });

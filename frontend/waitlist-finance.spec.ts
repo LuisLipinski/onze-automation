@@ -160,3 +160,32 @@ test('[UI-F05] cancelamento pago permite crédito em lote com confirmação', as
   await ui.sees(player.user.displayName);
   await ui.sees('25,00', true);
 });
+
+test('[UI-F06] saldos preenchidos respeitam privacidade mesmo alterando parâmetro da rota', async ({ ui, request, control }) => {
+  const g = await preparedMatch(request, control, { paymentRequired: true, goalkeeperPays: true });
+  const [first, second] = g.members.slice(1);
+  for (const actor of [first, second]) {
+    await body(await request.put(`/api/matches/${g.match.id}/payment/reported`, { headers: auth(actor) }));
+    await body(await request.put(`/api/matches/${g.match.id}/payments/${actor.user.id}/confirm`, { headers: auth(g.owner) }));
+  }
+  await body(await request.delete(`/api/matches/${g.match.id}`, { headers: auth(g.owner) }), 204);
+  for (const actor of [first, second]) {
+    await body(await request.put(`/api/matches/${g.match.id}/payments/${actor.user.id}/settlement`, { headers: auth(g.owner), data: { resolution: 'CREDITED' } }));
+  }
+  await ui.login(first);
+  for (const canManage of ['false', 'true']) {
+    await ui.open('group-credits', { groupId: g.id, canManage });
+    await ui.sees(first.user.displayName);
+    await ui.sees('25,00', true);
+    await ui.absent(second.user.displayName);
+    const own = await body(await request.get(`/api/groups/${g.id}/credits`, { headers: auth(first) }));
+    expect(own).toHaveLength(1);
+    expect(own[0].userId).toBe(first.user.id);
+  }
+  await ui.reset();
+  await ui.login(g.owner);
+  await ui.open('group-credits', { groupId: g.id, canManage: 'true' });
+  await ui.sees(first.user.displayName);
+  await ui.sees(second.user.displayName);
+  expect(await body(await request.get(`/api/groups/${g.id}/credits`, { headers: auth(g.owner) }))).toHaveLength(2);
+});

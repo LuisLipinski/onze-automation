@@ -7,6 +7,7 @@ const elementKey = 'element-6066-11e4-a52e-4f735466cecf';
 type Element = Record<typeof elementKey, string>;
 type Evidence = { native: true; commands: number; assertions: number; screens: string[] };
 type Rect = { x: number; y: number; width: number; height: number };
+export type NotificationPermission = 'granted' | 'prompt' | 'denied';
 
 function literal(value: string) {
   if (!value.includes("'")) return `'${value}'`;
@@ -43,6 +44,10 @@ export class Android {
     if ((packaged.expo ?? packaged).extra?.eas?.projectId) {
       throw new Error('FRONTEND_APK must use emulator recipe v2 without a remote EAS project');
     }
+    const serial = execFileSync('adb', ['get-serialno'], { encoding: 'utf8', timeout: 10_000 }).trim();
+    if (!/^emulator-\d+$/.test(serial)) {
+      throw new Error('Native fixtures may clear app data and enroll a test PIN only on a local Android emulator');
+    }
     const value = await this.command('/session', { capabilities: { alwaysMatch: {
       platformName: 'Android', 'appium:automationName': 'UiAutomator2',
       'appium:app': apk, 'appium:appPackage': appPackage,
@@ -62,7 +67,7 @@ export class Android {
     this.viewport = await this.command(this.path('/window/rect'));
   }
   async stop() { if (this.session) await this.command(this.path(''), undefined, 'DELETE'); }
-  async reset(beginTest = false) {
+  async reset(beginTest = false, notificationPermission: NotificationPermission = 'granted') {
     if (beginTest) {
       this.evidence = { native: true, commands: 0, assertions: 0, screens: [] };
       this.beforeScroll = '';
@@ -71,11 +76,15 @@ export class Android {
     await this.back();
     await this.execute('mobile: terminateApp', { appId: appPackage });
     await this.execute('mobile: clearApp', { appId: appPackage });
-    // Device fixture only. The emulator build has no EAS project and disables
-    // FCM auto-init, keeping remote registration isolated. This avoids Android's
-    // permission-activity resume loop when the current app is denied access.
-    execFileSync('adb', ['shell', 'pm', 'grant', appPackage,
-      'android.permission.POST_NOTIFICATIONS'], { timeout: 10_000 });
+    // Remote push remains isolated in the APK. Permission regressions use the
+    // real Android dialog or a previously denied state; other flows grant it.
+    const permission = 'android.permission.POST_NOTIFICATIONS';
+    execFileSync('adb', ['shell', 'pm', notificationPermission === 'granted' ? 'grant' : 'revoke',
+      appPackage, permission], { timeout: 10_000 });
+    if (notificationPermission !== 'granted') {
+      execFileSync('adb', ['shell', 'pm', notificationPermission === 'prompt' ? 'clear-permission-flags' : 'set-permission-flags',
+        appPackage, permission, 'user-set', 'user-fixed'], { timeout: 10_000 });
+    }
     await this.execute('mobile: activateApp', { appId: appPackage });
     await this.has('E-mail');
   }
@@ -94,11 +103,11 @@ export class Android {
   async elements(selector: string): Promise<Element[]> {
     return this.command(this.path('/elements'), { using: 'xpath', value: selector });
   }
-  async scrollToText(text: string) {
+  async scrollToText(text: string, contains = false) {
     // UiScrollable owns the native ScrollView's scrolling sequence. Use it
     // for long Android picker lists nested inside React Native pressables.
     const selector = `new UiScrollable(new UiSelector().packageName(${JSON.stringify(appPackage)}).scrollable(true))`
-      + `.setAsVerticalList().setMaxSearchSwipes(16).scrollIntoView(new UiSelector().packageName(${JSON.stringify(appPackage)}).text(${JSON.stringify(text)}))`;
+      + `.setAsVerticalList().setMaxSearchSwipes(16).scrollIntoView(new UiSelector().packageName(${JSON.stringify(appPackage)}).${contains ? 'textContains' : 'text'}(${JSON.stringify(text)}))`;
     this.evidence.commands++;
     const matches: Element[] = await this.command(this.path('/elements'), { using: '-android uiautomator', value: selector });
     await this.settle();
@@ -320,6 +329,69 @@ export class Android {
   async hasId(id: string) {
     this.evidence.assertions++;
     await expect.poll(async () => (await this.elements(`//*[@resource-id=${literal(id)}]`)).length).toBeGreaterThan(0);
+  }
+  private nativeCondition(text: string, contains = false) {
+    const normalized = (attribute: string) => `translate(normalize-space(@${attribute}),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')`;
+    return ['text', 'content-desc'].map(attribute => contains
+      ? `contains(${normalized(attribute)},${literal(text.toLowerCase())})`
+      : `${normalized(attribute)}=${literal(text.toLowerCase())}`).join(' or ');
+  }
+  async nativeVisible(text: string, contains = false) {
+    return (await this.elements(`//*[@displayed='true' and (${this.nativeCondition(text, contains)})]`)).length > 0;
+  }
+  async hasNative(text: string, contains = false) {
+    this.evidence.assertions++;
+    await expect.poll(() => this.nativeVisible(text, contains), { message: `Android system shows ${text}` }).toBe(true);
+  }
+  async tapNative(text: string, contains = false) {
+    await this.hasNative(text, contains);
+    const parents = await this.nativeActions(text, contains);
+    expect(parents.length, `Native Android action ${text}`).toBeGreaterThan(0);
+    await this.click(parents.at(-1)!);
+  }
+  private async nativeActions(text: string, contains = false) {
+    const selector = `//*[@displayed='true' and (${this.nativeCondition(text, contains)})]`;
+    const direct = await this.elements(`${selector}[@clickable='true' and @enabled='true']`);
+    return direct.length ? direct : this.elements(`${selector}/ancestor::*[@displayed='true' and @clickable='true' and @enabled='true'][1]`);
+  }
+  async nativeActionVisible(text: string) { return (await this.nativeActions(text)).length > 0; }
+  async source(): Promise<string> { return this.command(this.path('/source')); }
+  async selectGalleryThumbnail() {
+    const selector = `//*[@displayed='true' and (contains(@resource-id,':id/icon_thumbnail') or contains(@resource-id,':id/thumbnail') or contains(@content-desc,'Photo taken'))]`;
+    await expect.poll(async () => (await this.elements(selector)).length, { message: 'Native gallery contains seeded photo' }).toBeGreaterThan(0);
+    this.evidence.assertions++;
+    await this.click((await this.elements(selector))[0]);
+    await this.hasId(`${appPackage}:id/crop_image_menu_crop`);
+    await this.tapId(`${appPackage}:id/crop_image_menu_crop`);
+  }
+  async seesImage() {
+    this.evidence.assertions++;
+    await expect.poll(async () => (await this.elements(`//android.widget.ImageView[@package='${appPackage}' and @displayed='true']`)).length).toBeGreaterThan(0);
+  }
+  async rankedPlayer(rank: number, name: string) {
+    await this.seek(`#${rank}`);
+    this.evidence.assertions++;
+    const row = `${this.selector(`#${rank}`)}/ancestor::*[@clickable='true'][1]`;
+    expect((await this.elements(`${row}//*[@text=${literal(name)}]`)).length, `${name} occupies native rank #${rank}`).toBeGreaterThan(0);
+  }
+  observePermissionRequests() {
+    execFileSync('adb', ['logcat', '-b', 'main', '-b', 'system', '-c'], { timeout: 10_000 });
+  }
+  blockNotificationPermission() {
+    execFileSync('adb', ['shell', 'pm', 'set-permission-flags', appPackage,
+      'android.permission.POST_NOTIFICATIONS', 'user-set', 'user-fixed'], { timeout: 10_000 });
+  }
+  permissionRequests() {
+    const log = execFileSync('adb', ['logcat', '-d', '-b', 'main', '-b', 'system', '-v', 'brief',
+      'ActivityTaskManager:I', '*:S'], { encoding: 'utf8', timeout: 10_000, maxBuffer: 2 * 1024 * 1024 });
+    return log.split('\n').filter(line => line.includes('START u') && line.includes('REQUEST_PERMISSIONS')).length;
+  }
+  notificationPermission(granted: boolean) {
+    const state = execFileSync('adb', ['shell', 'dumpsys', 'package', appPackage], {
+      encoding: 'utf8', timeout: 10_000,
+    });
+    this.evidence.assertions++;
+    expect(state.match(/android\.permission\.POST_NOTIFICATIONS: granted=(true|false)/)?.[1]).toBe(String(granted));
   }
   async attach(info: TestInfo) {
     await info.attach('android-evidence', { body: JSON.stringify(this.evidence), contentType: 'application/json' });
