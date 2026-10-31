@@ -1,10 +1,11 @@
 import { test } from './support/test';
+import { type TestInfo } from '@playwright/test';
 import { password, register, type Actor } from './support/factory';
 import { type Android } from './support/android';
 import { enrollFingerprint, clearFingerprint } from './support/biometric-device';
 
-async function enable(ui: Android, actor: Actor) {
-  await enrollFingerprint(ui);
+async function enable(ui: Android, actor: Actor, info: TestInfo) {
+  await enrollFingerprint(ui, info);
   await ui.login(actor);
   await ui.tap('Configurações');
   await ui.tap('Login com biometria');
@@ -16,10 +17,10 @@ async function reopen(ui: Android) {
 }
 test.afterEach(async ({ ui }) => { await clearFingerprint(ui); });
 
-test('[UI-B01] biometria nativa autentica conta salva e desativação remove o bloqueio', async ({ ui, request }) => {
+test('[UI-B01] biometria nativa autentica conta salva e desativação remove o bloqueio', async ({ ui, request }, info) => {
   test.setTimeout(240_000);
   const actor = await register(request, 'Biometria Android');
-  await enable(ui, actor);
+  await enable(ui, actor, info);
   await reopen(ui);
   await ui.has(`Entrar como ${actor.user.displayName}`);
   await ui.absent('Home');
@@ -34,11 +35,11 @@ test('[UI-B01] biometria nativa autentica conta salva e desativação remove o b
   await ui.has(`Olá, ${actor.user.displayName}`);
 });
 
-test('[UI-B02] digital desconhecida e cancelamento permitem senha de outra conta sem trocar vínculo', async ({ ui, request }) => {
+test('[UI-B02] digital desconhecida e cancelamento permitem senha de outra conta sem trocar vínculo', async ({ ui, request }, info) => {
   test.setTimeout(240_000);
   const first = await register(request, 'Conta biométrica A');
   const second = await register(request, 'Conta com senha B');
-  await enable(ui, first);
+  await enable(ui, first, info);
   await reopen(ui);
   await ui.tap(`Entrar como ${first.user.displayName}`);
   await ui.hasNative('Entrar no Onze');

@@ -30,13 +30,20 @@ test.describe('primeira solicitação de notificações', () => {
 });
 
 test.describe('notificações já bloqueadas no Android', () => {
-  test.use({ notificationPermission: 'denied' });
+  test.use({ notificationPermission: 'prompt' });
 
   test('[UI-N02] permissão bloqueada não abre atividades durante refresh e retorno ao app', async ({ ui, request, control }) => {
     const g = await group(request, 0);
     const match = await createMatch(request, control, g.id, g.owner);
+    await ui.signIn(g.owner);
+    await ui.hasId('com.google.android.permissioncontroller:id/permission_deny_button');
+    await ui.tapId('com.google.android.permissioncontroller:id/permission_deny_button');
+    await ui.has(`Olá, ${g.owner.user.displayName}`);
+    ui.blockNotificationPermission();
     ui.observePermissionRequests();
-    await ui.login(g.owner);
+    await ui.execute('mobile: terminateApp', { appId: 'com.onze.organizadordepelada' });
+    await ui.execute('mobile: activateApp', { appId: 'com.onze.organizadordepelada' });
+    await ui.has(`Olá, ${g.owner.user.displayName}`);
     for (let resume = 0; resume < 2; resume++) {
       await ui.open('match', { matchId: match.id });
       await ui.sees('Lista de presença');

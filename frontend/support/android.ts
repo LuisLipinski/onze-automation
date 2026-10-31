@@ -326,8 +326,14 @@ export class Android {
     this.evidence.assertions++;
     await expect.poll(async () => (await this.elements(`//*[@resource-id=${literal(id)}]`)).length).toBeGreaterThan(0);
   }
+  private nativeCondition(text: string, contains = false) {
+    const normalized = (attribute: string) => `translate(normalize-space(@${attribute}),'ABCDEFGHIJKLMNOPQRSTUVWXYZ','abcdefghijklmnopqrstuvwxyz')`;
+    return ['text', 'content-desc'].map(attribute => contains
+      ? `contains(${normalized(attribute)},${literal(text.toLowerCase())})`
+      : `${normalized(attribute)}=${literal(text.toLowerCase())}`).join(' or ');
+  }
   async nativeVisible(text: string, contains = false) {
-    return (await this.elements(`//*[@displayed='true' and (${this.condition(text, contains)})]`)).length > 0;
+    return (await this.elements(`//*[@displayed='true' and (${this.nativeCondition(text, contains)})]`)).length > 0;
   }
   async hasNative(text: string, contains = false) {
     this.evidence.assertions++;
@@ -335,12 +341,16 @@ export class Android {
   }
   async tapNative(text: string, contains = false) {
     await this.hasNative(text, contains);
-    const selector = `//*[@displayed='true' and (${this.condition(text, contains)})]`;
-    const direct = await this.elements(`${selector}[@clickable='true']`);
-    const parents = direct.length ? direct : await this.elements(`${selector}/ancestor::*[@displayed='true' and @clickable='true'][1]`);
+    const parents = await this.nativeActions(text, contains);
     expect(parents.length, `Native Android action ${text}`).toBeGreaterThan(0);
     await this.click(parents.at(-1)!);
   }
+  private async nativeActions(text: string, contains = false) {
+    const selector = `//*[@displayed='true' and (${this.nativeCondition(text, contains)})]`;
+    const direct = await this.elements(`${selector}[@clickable='true' and @enabled='true']`);
+    return direct.length ? direct : this.elements(`${selector}/ancestor::*[@displayed='true' and @clickable='true' and @enabled='true'][1]`);
+  }
+  async nativeActionVisible(text: string) { return (await this.nativeActions(text)).length > 0; }
   async source(): Promise<string> { return this.command(this.path('/source')); }
   async selectGalleryThumbnail() {
     const selector = `//*[@displayed='true' and (contains(@resource-id,':id/icon_thumbnail') or contains(@resource-id,':id/thumbnail') or contains(@content-desc,'Photo taken'))]`;
@@ -362,6 +372,10 @@ export class Android {
   }
   observePermissionRequests() {
     execFileSync('adb', ['logcat', '-b', 'main', '-b', 'system', '-c'], { timeout: 10_000 });
+  }
+  blockNotificationPermission() {
+    execFileSync('adb', ['shell', 'pm', 'set-permission-flags', appPackage,
+      'android.permission.POST_NOTIFICATIONS', 'user-set', 'user-fixed'], { timeout: 10_000 });
   }
   permissionRequests() {
     const log = execFileSync('adb', ['logcat', '-d', '-b', 'main', '-b', 'system', '-v', 'brief',
