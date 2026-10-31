@@ -220,8 +220,9 @@ test('[UI-L10] tempos respeitam relógio e administrador inicia segundo tempo', 
   await control.advance(60_000);
   await ui.open('home');
   await ui.open('live-match', { matchId: g.match.id });
-  await ui.scrollToText('Alterar acréscimos');
-  await ui.has('O tempo pode ser encerrado.', true, 90_000);
+  await ui.has('ACRÉSCIMOS', false, 90_000);
+  await ui.scrollToText('O tempo pode ser encerrado.', true);
+  await ui.has('O tempo pode ser encerrado.', true);
   await ui.tap('Encerrar 1º tempo');
   await ui.sees('Iniciar 2º tempo');
   await ui.tap('Iniciar 2º tempo');
@@ -312,8 +313,9 @@ test('[UI-L16] empate abre prorrogação e administrador inicia o tempo extra', 
   await control.advance(60_000);
   await ui.login(g.owner);
   await ui.open('live-match', { matchId: g.match.id });
-  await ui.scrollToText('Adicionar acréscimos');
-  await ui.has('O tempo pode ser encerrado.', true, 90_000);
+  await ui.has('ACRÉSCIMOS', false, 90_000);
+  await ui.scrollToText('O tempo pode ser encerrado.', true);
+  await ui.has('O tempo pode ser encerrado.', true);
   await ui.tap('Encerrar 1º tempo');
   await ui.tap('Iniciar 1º tempo da prorrogação');
   await expect.poll(async () => (await live(request, g.match.id, g.owner)).periods.at(-1).periodType).toBe('OVERTIME');

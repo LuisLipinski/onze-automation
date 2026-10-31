@@ -103,11 +103,11 @@ export class Android {
   async elements(selector: string): Promise<Element[]> {
     return this.command(this.path('/elements'), { using: 'xpath', value: selector });
   }
-  async scrollToText(text: string) {
+  async scrollToText(text: string, contains = false) {
     // UiScrollable owns the native ScrollView's scrolling sequence. Use it
     // for long Android picker lists nested inside React Native pressables.
     const selector = `new UiScrollable(new UiSelector().packageName(${JSON.stringify(appPackage)}).scrollable(true))`
-      + `.setAsVerticalList().setMaxSearchSwipes(16).scrollIntoView(new UiSelector().packageName(${JSON.stringify(appPackage)}).text(${JSON.stringify(text)}))`;
+      + `.setAsVerticalList().setMaxSearchSwipes(16).scrollIntoView(new UiSelector().packageName(${JSON.stringify(appPackage)}).${contains ? 'textContains' : 'text'}(${JSON.stringify(text)}))`;
     this.evidence.commands++;
     const matches: Element[] = await this.command(this.path('/elements'), { using: '-android uiautomator', value: selector });
     await this.settle();
