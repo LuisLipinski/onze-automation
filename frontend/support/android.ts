@@ -44,6 +44,10 @@ export class Android {
     if ((packaged.expo ?? packaged).extra?.eas?.projectId) {
       throw new Error('FRONTEND_APK must use emulator recipe v2 without a remote EAS project');
     }
+    const serial = execFileSync('adb', ['get-serialno'], { encoding: 'utf8', timeout: 10_000 }).trim();
+    if (!/^emulator-\d+$/.test(serial)) {
+      throw new Error('Native fixtures may clear app data and enroll a test PIN only on a local Android emulator');
+    }
     const value = await this.command('/session', { capabilities: { alwaysMatch: {
       platformName: 'Android', 'appium:automationName': 'UiAutomator2',
       'appium:app': apk, 'appium:appPackage': appPackage,
@@ -380,7 +384,7 @@ export class Android {
   permissionRequests() {
     const log = execFileSync('adb', ['logcat', '-d', '-b', 'main', '-b', 'system', '-v', 'brief',
       'ActivityTaskManager:I', '*:S'], { encoding: 'utf8', timeout: 10_000, maxBuffer: 2 * 1024 * 1024 });
-    return log.split('\n').filter(line => line.includes('REQUEST_PERMISSIONS')).length;
+    return log.split('\n').filter(line => line.includes('START u') && line.includes('REQUEST_PERMISSIONS')).length;
   }
   notificationPermission(granted: boolean) {
     const state = execFileSync('adb', ['shell', 'dumpsys', 'package', appPackage], {
