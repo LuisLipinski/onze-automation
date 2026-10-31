@@ -11,6 +11,7 @@ import com.onze.api.match.LiveMatchService;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import java.net.InetSocketAddress;
+import java.sql.SQLException;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -18,6 +19,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.springframework.boot.SpringApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.*;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.json.JsonMapper;
 
@@ -79,8 +81,8 @@ public class AutomationApplication {
                 Object result;
                 switch (path) {
                     case "/reset" -> {
-                        List<String> tables = db.queryForList("select tablename from pg_tables where schemaname='public' and tablename <> 'flyway_schema_history'", String.class);
-                        if (!tables.isEmpty()) db.execute("truncate table " + tables.stream().map(n -> "\"" + n.replace("\"", "\"\"") + "\"").collect(java.util.stream.Collectors.joining(",")) + " restart identity cascade");
+                        List<String> tables = db.queryForList("select tablename from pg_tables where schemaname='public' and tablename <> 'flyway_schema_history' order by tablename", String.class);
+                        if (!tables.isEmpty()) truncateWithRetry(db, "truncate table " + tables.stream().map(n -> "\"" + n.replace("\"", "\"\"") + "\"").collect(java.util.stream.Collectors.joining(",")) + " restart identity cascade");
                         NOW.set(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS)); EMAILS.clear(); PUSHES.clear(); MEDIA.clear(); EXPO_REPLIES.clear(); EXPO_DEFAULT_REPLY.set(null);
                         failMedia = false; failEmail = false;
                         result = Map.of("now", NOW.get().toString());
@@ -148,6 +150,28 @@ public class AutomationApplication {
         server.start();
         Runtime.getRuntime().addShutdownHook(new Thread(() -> { server.stop(0); app.close(); }));
         System.out.println("AUTOMATION_CONTROL_READY");
+    }
+
+    static void truncateWithRetry(JdbcTemplate db, String sql) {
+        // TRUNCATE is one atomic, autocommit statement. A deadlock rolls it
+        // back completely; an async refresh from the previous case can finish
+        // before the next attempt. Persistent and unrelated errors still fail.
+        for (int attempt = 0; ; attempt++) {
+            try { db.execute(sql); return; }
+            catch (DataAccessException failure) {
+                boolean deadlock = false;
+                for (Throwable cause = failure; cause != null; cause = cause.getCause()) {
+                    if (cause instanceof SQLException error && "40P01".equals(error.getSQLState())) deadlock = true;
+                }
+                if (!deadlock || attempt >= 2) throw failure;
+                System.err.println("Automation reset deadlock; retry " + (attempt + 1) + "/2");
+                try { Thread.sleep(50L * (attempt + 1)); }
+                catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException("Automation reset interrupted", interrupted);
+                }
+            }
+        }
     }
 
     static void respond(HttpExchange exchange, JsonMapper json, int status, Object value) throws java.io.IOException {
