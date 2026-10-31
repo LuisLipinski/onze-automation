@@ -357,6 +357,36 @@
       "id": "UI-N02",
       "description": "permissão bloqueada não abre atividades durante refresh e retorno ao app",
       "file": "frontend/notifications.spec.ts"
+    },
+    {
+      "id": "UI-B01",
+      "description": "biometria nativa autentica conta salva e desativação remove o bloqueio",
+      "file": "frontend/biometrics.spec.ts"
+    },
+    {
+      "id": "UI-B02",
+      "description": "digital desconhecida e cancelamento permitem senha de outra conta sem trocar vínculo",
+      "file": "frontend/biometrics.spec.ts"
+    },
+    {
+      "id": "UI-Y01",
+      "description": "galeria cancela, seleciona e recorta foto antes de criar grupo e preserva imagem",
+      "file": "frontend/media.spec.ts"
+    },
+    {
+      "id": "UI-Y02",
+      "description": "erro de upload mantém grupo único e permite reenviar a foto escolhida",
+      "file": "frontend/media.spec.ts"
+    },
+    {
+      "id": "UI-S05",
+      "description": "posições reais do ranking desempataram gols por assistências e assistências por gols",
+      "file": "frontend/statistics.spec.ts"
+    },
+    {
+      "id": "UI-F06",
+      "description": "saldos preenchidos respeitam privacidade mesmo alterando parâmetro da rota",
+      "file": "frontend/waitlist-finance.spec.ts"
     }
   ]
 }

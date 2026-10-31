@@ -326,6 +326,40 @@ export class Android {
     this.evidence.assertions++;
     await expect.poll(async () => (await this.elements(`//*[@resource-id=${literal(id)}]`)).length).toBeGreaterThan(0);
   }
+  async nativeVisible(text: string, contains = false) {
+    return (await this.elements(`//*[@displayed='true' and (${this.condition(text, contains)})]`)).length > 0;
+  }
+  async hasNative(text: string, contains = false) {
+    this.evidence.assertions++;
+    await expect.poll(() => this.nativeVisible(text, contains), { message: `Android system shows ${text}` }).toBe(true);
+  }
+  async tapNative(text: string, contains = false) {
+    await this.hasNative(text, contains);
+    const selector = `//*[@displayed='true' and (${this.condition(text, contains)})]`;
+    const direct = await this.elements(`${selector}[@clickable='true']`);
+    const parents = direct.length ? direct : await this.elements(`${selector}/ancestor::*[@displayed='true' and @clickable='true'][1]`);
+    expect(parents.length, `Native Android action ${text}`).toBeGreaterThan(0);
+    await this.click(parents.at(-1)!);
+  }
+  async source(): Promise<string> { return this.command(this.path('/source')); }
+  async selectGalleryThumbnail() {
+    const selector = `//*[@displayed='true' and (contains(@resource-id,':id/icon_thumbnail') or contains(@resource-id,':id/thumbnail') or contains(@content-desc,'Photo taken'))]`;
+    await expect.poll(async () => (await this.elements(selector)).length, { message: 'Native gallery contains seeded photo' }).toBeGreaterThan(0);
+    this.evidence.assertions++;
+    await this.click((await this.elements(selector))[0]);
+    await this.hasId(`${appPackage}:id/crop_image_menu_crop`);
+    await this.tapId(`${appPackage}:id/crop_image_menu_crop`);
+  }
+  async seesImage() {
+    this.evidence.assertions++;
+    await expect.poll(async () => (await this.elements(`//android.widget.ImageView[@package='${appPackage}' and @displayed='true']`)).length).toBeGreaterThan(0);
+  }
+  async rankedPlayer(rank: number, name: string) {
+    await this.seek(`#${rank}`);
+    this.evidence.assertions++;
+    const row = `${this.selector(`#${rank}`)}/ancestor::*[@clickable='true'][1]`;
+    expect((await this.elements(`${row}//*[@text=${literal(name)}]`)).length, `${name} occupies native rank #${rank}`).toBeGreaterThan(0);
+  }
   observePermissionRequests() {
     execFileSync('adb', ['logcat', '-b', 'main', '-b', 'system', '-c'], { timeout: 10_000 });
   }

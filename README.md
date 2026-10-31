@@ -52,7 +52,7 @@ O job instala PostgreSQL 18, obtém a revisão da API, compila o harness, execut
 
 ## Interface nativa Android
 
-A matriz em [frontend-flows.json](coverage/frontend-flows.json) declara 65 cenários funcionais e as 30 rotas Expo Router atuais. [frontend-flows.md](coverage/frontend-flows.md) descreve escopo e limites. Playwright fornece fixtures, assertions e relatórios; todas as ações de interface usam Appium 3.8.0 / UiAutomator2 8.7.1 no APK release, sem navegador ou árvore React simulada.
+A matriz em [frontend-flows.json](coverage/frontend-flows.json) declara 71 cenários funcionais e as 30 rotas Expo Router atuais. [frontend-flows.md](coverage/frontend-flows.md) descreve escopo e limites. Playwright fornece fixtures, assertions e relatórios; todas as ações de interface usam Appium 3.8.0 / UiAutomator2 8.7.1 no APK release, sem navegador ou árvore React simulada.
 
 O workflow **Android UI Automation** compila o mobile `development` para x86_64, usando somente `http://10.0.2.2:8080`. A liberação de HTTP fica no manifesto Android gerado desse build isolado. O APK de emulador não é uma versão para distribuição. O código do mobile e o APK arm64 para os usuários permanecem os mesmos.
 
@@ -70,10 +70,10 @@ FRONTEND_APK=/caminho/absoluto/onze-automation-emulator.apk npm run frontend:tes
 
 Requisitos adicionais locais: Android SDK/ADB, unzip, emulador Android 36 e APK release x86_64 da receita v2, compilado para a API local, sem projeto EAS e com FCM auto-init desativado. O driver recusa APKs que ainda contenham o projeto EAS. `ONZE_MOBILE_DIR` aponta para o checkout mobile (padrão `../onze-mobile`). Não execute backend e Android ao mesmo tempo contra a mesma base: ambos limpam dados entre cenários.
 
-O CI publica HTML, JSON, captura de tela de cada cenário, hierarquia Android em falhas e logs por 14 dias. O gate consolidado exige todas as partes, os 65 cenários aprovados com comandos e assertions nativos, as 30 rotas/guardas observadas, revisões idênticas da API/mobile e zero falhas, ignorados ou retries. Rotas novas sem inventário atualizado bloqueiam a compilação.
+O CI publica HTML, JSON, captura de tela de cada cenário, hierarquia Android em falhas e logs por 14 dias. O gate consolidado exige todas as partes, os 71 cenários aprovados com comandos e assertions nativos, as 30 rotas/guardas observadas, revisões idênticas da API/mobile e zero falhas, ignorados ou retries. Rotas novas sem inventário atualizado bloqueiam a compilação.
 
 O disparo manual aceita `mobile_ref`, `backend_ref` e um filtro opcional `scenarios`. Execuções filtradas são diagnósticas e não aprovam o gate integral. Alterações em API/mobile não disparam automaticamente este repositório; execute o workflow depois de integrar mudanças nesses projetos.
 
-A cobertura mede a matriz funcional declarada e entradas/guardas das rotas, não linhas/branches TypeScript, comparação de pixels ou todas as combinações de dados e aparelhos. Entrega real de push/e-mail/WhatsApp, biometria física e seleção/edição de fotos em aparelhos reais continuam exigindo validação própria. Os testes abrem o compartilhamento nativo sem enviar mensagens para pessoas.
+A cobertura mede a matriz funcional declarada e entradas/guardas das rotas, não linhas/branches TypeScript, comparação de pixels ou todas as combinações de dados e aparelhos. Biometria e galeria/recorte pertencem à matriz no emulador. Entrega real de push/e-mail/WhatsApp e validação em aparelhos físicos continuam exigindo ambientes próprios. Os testes abrem o compartilhamento nativo sem enviar mensagens para pessoas.
 
 A recusa de notificações e o bloqueio pelo Android pertencem à matriz N01–N02. Essas regressões protegem contra o ciclo de atividades `REQUEST_PERMISSIONS` encontrado no mobile `3f02636` e corrigido em `707c105`. O registro remoto continua isolado; os testes não enviam notificações a usuários reais.

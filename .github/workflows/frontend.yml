@@ -184,6 +184,7 @@ jobs:
       AUTOMATION_CONTROL_TOKEN: isolated-ci-control-0123456789-automation
       AUTOMATION_DATABASE_PASSWORD: onze-automation-only
       FRONTEND_APK: ${{ github.workspace }}/.runtime/apk/onze-automation-emulator.apk
+      AUTOMATION_MEDIA_BASE_URL: http://10.0.2.2:8090/media
       FRONTEND_SHARD: ${{ matrix.shard }}
       FRONTEND_FILTER: ${{ inputs.scenarios }}
     steps:
