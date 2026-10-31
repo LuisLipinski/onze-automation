@@ -347,6 +347,16 @@
       "id": "UI-F05",
       "description": "cancelamento pago permite crédito em lote com confirmação",
       "file": "frontend/waitlist-finance.spec.ts"
+    },
+    {
+      "id": "UI-N01",
+      "description": "recusa nativa mantém navegação e presença sem repetir solicitação",
+      "file": "frontend/notifications.spec.ts"
+    },
+    {
+      "id": "UI-N02",
+      "description": "permissão bloqueada não abre atividades durante refresh e retorno ao app",
+      "file": "frontend/notifications.spec.ts"
     }
   ]
 }

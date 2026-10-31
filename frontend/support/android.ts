@@ -7,6 +7,7 @@ const elementKey = 'element-6066-11e4-a52e-4f735466cecf';
 type Element = Record<typeof elementKey, string>;
 type Evidence = { native: true; commands: number; assertions: number; screens: string[] };
 type Rect = { x: number; y: number; width: number; height: number };
+export type NotificationPermission = 'granted' | 'prompt' | 'denied';
 
 function literal(value: string) {
   if (!value.includes("'")) return `'${value}'`;
@@ -62,7 +63,7 @@ export class Android {
     this.viewport = await this.command(this.path('/window/rect'));
   }
   async stop() { if (this.session) await this.command(this.path(''), undefined, 'DELETE'); }
-  async reset(beginTest = false) {
+  async reset(beginTest = false, notificationPermission: NotificationPermission = 'granted') {
     if (beginTest) {
       this.evidence = { native: true, commands: 0, assertions: 0, screens: [] };
       this.beforeScroll = '';
@@ -71,11 +72,15 @@ export class Android {
     await this.back();
     await this.execute('mobile: terminateApp', { appId: appPackage });
     await this.execute('mobile: clearApp', { appId: appPackage });
-    // Device fixture only. The emulator build has no EAS project and disables
-    // FCM auto-init, keeping remote registration isolated. This avoids Android's
-    // permission-activity resume loop when the current app is denied access.
-    execFileSync('adb', ['shell', 'pm', 'grant', appPackage,
-      'android.permission.POST_NOTIFICATIONS'], { timeout: 10_000 });
+    // Remote push remains isolated in the APK. Permission regressions use the
+    // real Android dialog or a previously denied state; other flows grant it.
+    const permission = 'android.permission.POST_NOTIFICATIONS';
+    execFileSync('adb', ['shell', 'pm', notificationPermission === 'granted' ? 'grant' : 'revoke',
+      appPackage, permission], { timeout: 10_000 });
+    if (notificationPermission !== 'granted') {
+      execFileSync('adb', ['shell', 'pm', notificationPermission === 'prompt' ? 'clear-permission-flags' : 'set-permission-flags',
+        appPackage, permission, 'user-set', 'user-fixed'], { timeout: 10_000 });
+    }
     await this.execute('mobile: activateApp', { appId: appPackage });
     await this.has('E-mail');
   }
@@ -320,6 +325,21 @@ export class Android {
   async hasId(id: string) {
     this.evidence.assertions++;
     await expect.poll(async () => (await this.elements(`//*[@resource-id=${literal(id)}]`)).length).toBeGreaterThan(0);
+  }
+  observePermissionRequests() {
+    execFileSync('adb', ['logcat', '-b', 'main', '-b', 'system', '-c'], { timeout: 10_000 });
+  }
+  permissionRequests() {
+    const log = execFileSync('adb', ['logcat', '-d', '-b', 'main', '-b', 'system', '-v', 'brief',
+      'ActivityTaskManager:I', '*:S'], { encoding: 'utf8', timeout: 10_000, maxBuffer: 2 * 1024 * 1024 });
+    return log.split('\n').filter(line => line.includes('REQUEST_PERMISSIONS')).length;
+  }
+  notificationPermission(granted: boolean) {
+    const state = execFileSync('adb', ['shell', 'dumpsys', 'package', appPackage], {
+      encoding: 'utf8', timeout: 10_000,
+    });
+    this.evidence.assertions++;
+    expect(state.match(/android\.permission\.POST_NOTIFICATIONS: granted=(true|false)/)?.[1]).toBe(String(granted));
   }
   async attach(info: TestInfo) {
     await info.attach('android-evidence', { body: JSON.stringify(this.evidence), contentType: 'application/json' });

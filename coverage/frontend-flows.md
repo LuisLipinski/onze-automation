@@ -1,9 +1,10 @@
 # Matriz de interface Android
 
-O inventário executável está em `frontend-flows.json`. O contrato compara as 30 rotas do código mobile com o inventário e os 63 IDs com os testes. Cada resultado aprovado deve carregar evidência de comandos Appium e assertions nativos; visitas HTTP de preparação não contam como execução de UI.
+O inventário executável está em `frontend-flows.json`. O contrato compara as 30 rotas do código mobile com o inventário e os 65 IDs com os testes. Cada resultado aprovado deve carregar evidência de comandos Appium e assertions nativos; visitas HTTP de preparação não contam como execução de UI.
 
 | Área | Cenários | Verificações principais |
 |---|---|---|
+| Permissão de notificações | N01–N02 | Recusa no diálogo nativo, bloqueio prévio, navegação/presença e retorno ao primeiro plano sem repetir REQUEST_PERMISSIONS. |
 | Acesso e navegação | A01–A07 | Credenciais inválidas, cadastro, recuperação real de código, código incorreto, persistência/logout, tabs, convite profundo com autenticação. |
 | Grupos e administração | G01–G10 | Três etapas de criação, validação, convite/renovação/compartilhamento nativo, menus por papel, todas as 11 permissões configuráveis, promoção sem funções, transferência, rebaixamento/remoção, exclusão/aviso e saída. |
 | Perfis e níveis | P01–P04 | Posições, segunda posição, goleiro voluntário, pé dominante, avaliação técnica editável pelo admin e consulta própria sem edição, validação de perfil incompleto. |
@@ -16,10 +17,10 @@ O inventário executável está em `frontend-flows.json`. O contrato compara as 
 
 ## Critério de aprovação
 
-Oito partes independentes, 63/63 cenários aprovados, 30/30 rotas/guardas observadas e pelo menos um comando e uma assertion nativos em cada cenário. O gate recusa revisões divergentes, IDs ausentes/duplicados, falhas e testes ignorados. O JSON inclui revisões e contadores de evidência; o HTML inclui screenshots e, em falhas, a hierarquia Android e os logs nativos de crash e da aplicação.
+Oito partes independentes, 63/65 cenários aprovados, 30/30 rotas/guardas observadas e pelo menos um comando e uma assertion nativos em cada cenário. O gate recusa revisões divergentes, IDs ausentes/duplicados, falhas e testes ignorados. O JSON inclui revisões e contadores de evidência; o HTML inclui screenshots e, em falhas, a hierarquia Android e os logs nativos de crash e da aplicação.
 
 `join/[code]` e `dev-test-data` são rotas de redirecionamento/guarda: o teste verifica o destino e o bloqueio esperado. A ferramenta opcional permanece falsa no backend desta matriz, como na configuração normal; seus cinco endpoints habilitados já pertencem à suíte HTTP separada.
 
 ## Limites
 
-A contagem representa esta matriz funcional e não prova 100% de linhas, branches, pixels, controles ou combinações de dados. A lógica real da API e o banco são usados; e-mail/mídia/Expo ficam nas fronteiras isoladas já documentadas no backend. A permissão de notificações é concedida no emulador; o APK de receita v2 omite o projeto EAS e desativa FCM auto-init para isolar o registro remoto. A recusa dessa permissão precisa de validação própria: na revisão mobile `3f02636`, os logs mostraram ciclos de `REQUEST_PERMISSIONS` que interrompem a interação. O compartilhamento abre o seletor Android sem enviar a WhatsApp ou destinatários. Biometria física, galeria/câmera/edição de fotos, entrega real de notificações/provedores, aparelhos/versões adicionais, acessibilidade com leitor de tela, carga e funcionalidades futuras não estão declarados como validados por esta matriz.
+A contagem representa esta matriz funcional e não prova 100% de linhas, branches, pixels, controles ou combinações de dados. A lógica real da API e o banco são usados; e-mail/mídia/Expo ficam nas fronteiras isoladas já documentadas no backend. Por padrão, a permissão de notificações é concedida no emulador; N01 e N02 exercitam recusa e bloqueio nativos; o APK de receita v2 omite o projeto EAS e desativa FCM auto-init para isolar o registro remoto. A regressão protege contra o ciclo de `REQUEST_PERMISSIONS` encontrado no mobile `3f02636` e corrigido em `707c105`. O compartilhamento abre o seletor Android sem enviar a WhatsApp ou destinatários. Biometria física, galeria/câmera/edição de fotos, entrega real de notificações/provedores, aparelhos/versões adicionais, acessibilidade com leitor de tela, carga e funcionalidades futuras não estão declarados como validados por esta matriz.

@@ -2,9 +2,9 @@ name: Automation CI
 
 on:
   pull_request:
-    branches: [development]
+    branches: [development, master]
   push:
-    branches: [development]
+    branches: [development, master]
   workflow_dispatch:
     inputs:
       backend_ref:

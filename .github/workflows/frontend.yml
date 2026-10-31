@@ -2,9 +2,9 @@ name: Android UI Automation
 
 on:
   pull_request:
-    branches: [development]
+    branches: [development, master]
   push:
-    branches: [development]
+    branches: [development, master]
   workflow_dispatch:
     inputs:
       mobile_ref:
