@@ -61,8 +61,12 @@ test('[UI-M03] presença confirma, desabilita repetição e permite liberar vaga
   await ui.absent('Confirmar que não vai?');
   const paid = await createMatch(request, control, g.id, g.owner, { paymentRequired: true, goalkeeperPays: true });
   await ui.open('match', { matchId: paid.id });
+  // This field belongs to the paid game; the free game's old action can still
+  // be exposed briefly while the same route is loading its new parameters.
+  await ui.sees('PAGAR ATÉ');
   await ui.tap('✓ Vou jogar');
   await expect.poll(async () => (await getMatch(request, paid.id, g.members[0])).myAttendance).toBe('GOING');
+  expect((await getMatch(request, match.id, g.members[0])).myAttendance).toBe('NOT_GOING');
   await ui.tap('Não vou');
   await ui.has('Confirmar que não vai?');
   await ui.tap('Liberar minha vaga');

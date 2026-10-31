@@ -91,6 +91,9 @@ export class Android {
   async open(route: string, params: Record<string, string> = {}) {
     const url = `onze://${route.replace(/^\//, '')}${Object.keys(params).length ? `?${new URLSearchParams(params)}` : ''}`;
     await this.execute('mobile: deepLink', { url, package: appPackage, waitForLaunch: true });
+    // Activity launch completes before RN navigation and the new API data can
+    // move controls. Observe fresh geometry before finding an action to touch.
+    await this.settle();
   }
   private condition(text: string, contains = false) {
     return contains
