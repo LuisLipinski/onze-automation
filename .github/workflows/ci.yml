@@ -75,6 +75,11 @@ jobs:
         run: npm run backend:start > .runtime/startup.log 2>&1 &
       - name: Backend scenarios and coverage gate
         run: npm test
+      - name: Verify reset deadlock recovery and rollback
+        run: |
+          reset_classpath=".runtime/classes:backend-source/target/classes:$(cat backend-source/target/automation-classpath.txt)"
+          javac -cp "$reset_classpath" -d .runtime/classes harness/ResetIsolationCheck.java
+          java -cp "$reset_classpath" com.onze.automation.ResetIsolationCheck
       - name: Publish test reports and exact backend revision
         if: always()
         uses: actions/upload-artifact@v6
