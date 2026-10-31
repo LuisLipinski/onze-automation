@@ -4,11 +4,16 @@
   "private": true,
   "scripts": {
     "test": "playwright test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "backend:start": "node scripts/start-backend.mjs",
+    "backend:contract": "node scripts/check-backend-contract.mjs",
+    "frontend:test": "playwright test --config=frontend.config.ts",
+    "frontend:contract": "node scripts/check-frontend-contract.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.62.1",
     "@types/node": "^22.15.0",
+    "appium": "3.8.0",
     "typescript": "~6.0.3"
   }
 }

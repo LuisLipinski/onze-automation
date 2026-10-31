@@ -5,3 +5,10 @@ test-results/
 .env.*
 !.env.example
 .DS_Store
+/.runtime/
+/coverage/results/
+
+/frontend-report/
+/frontend-results/
+/mobile-source/
+/backend-source/

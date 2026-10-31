@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 
 test.describe('API authentication', () => {
   test('deve cadastrar, autenticar e consultar o usuário logado', async ({ request }) => {

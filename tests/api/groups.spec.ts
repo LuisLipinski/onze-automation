@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from '../support/test';
 
 type AuthBody = {
   accessToken: string;
@@ -73,7 +73,7 @@ test.describe('P1 - grupos', () => {
     });
     expect(photoResponse.status()).toBe(200);
     const withPhoto = (await photoResponse.json()) as GroupBody;
-    expect(withPhoto.photoUrl).toMatch(/^https:\/\/res\.cloudinary\.com\//);
+    expect(withPhoto.photoUrl).toBe(`https://media.onze.test/groups/${group.id}.png`);
 
     const detailsResponse = await request.put(`/api/groups/${group.id}/details`, {
       headers: auth(creator.accessToken),
