@@ -387,6 +387,11 @@
       "id": "UI-F06",
       "description": "saldos preenchidos respeitam privacidade mesmo alterando parâmetro da rota",
       "file": "frontend/waitlist-finance.spec.ts"
+    },
+    {
+      "id": "UI-Y03",
+      "description": "logo escolhido no início aparece ao vivo e na escalação do próximo jogo",
+      "file": "frontend/media.spec.ts"
     }
   ]
 }

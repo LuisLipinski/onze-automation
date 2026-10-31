@@ -9,8 +9,8 @@ test.describe('primeira solicitação de notificações', () => {
     const match = await createMatch(request, control, g.id, g.owner);
     ui.observePermissionRequests();
     await ui.signIn(g.owner);
-    await ui.hasId('com.google.android.permissioncontroller:id/permission_deny_button');
-    await ui.tapId('com.google.android.permissioncontroller:id/permission_deny_button');
+    await ui.hasId('com.android.permissioncontroller:id/permission_deny_button');
+    await ui.tapId('com.android.permissioncontroller:id/permission_deny_button');
     await ui.has(`Olá, ${g.owner.user.displayName}`);
     ui.notificationPermission(false);
     await ui.open('match', { matchId: match.id });
@@ -36,8 +36,8 @@ test.describe('notificações já bloqueadas no Android', () => {
     const g = await group(request, 0);
     const match = await createMatch(request, control, g.id, g.owner);
     await ui.signIn(g.owner);
-    await ui.hasId('com.google.android.permissioncontroller:id/permission_deny_button');
-    await ui.tapId('com.google.android.permissioncontroller:id/permission_deny_button');
+    await ui.hasId('com.android.permissioncontroller:id/permission_deny_button');
+    await ui.tapId('com.android.permissioncontroller:id/permission_deny_button');
     await ui.has(`Olá, ${g.owner.user.displayName}`);
     ui.blockNotificationPermission();
     ui.observePermissionRequests();

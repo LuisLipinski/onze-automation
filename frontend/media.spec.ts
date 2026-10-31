@@ -1,5 +1,5 @@
 import { test, expect } from './support/test';
-import { auth, body, group, readGroup, register } from './support/factory';
+import { auth, body, createMatch, generatedMatch, going, group, live, readGroup, register } from './support/factory';
 import { seedGallery } from './support/gallery';
 
 test('[UI-Y01] galeria cancela, seleciona e recorta foto antes de criar grupo e preserva imagem', async ({ ui, request, control }) => {
@@ -24,7 +24,7 @@ test('[UI-Y01] galeria cancela, seleciona e recorta foto antes de criar grupo e 
   expect(media).toEqual([expect.objectContaining({ path: `/groups/${saved.id}.png` })]);
   expect(media[0].width).toBe(media[0].height);
   expect(media[0].width).toBeGreaterThanOrEqual(128);
-  expect(media[0].width).toBeLessThanOrEqual(256);
+  expect(media[0].width).toBeLessThan(256);
   expect(media[0].bytes).toBeGreaterThan(100);
   const delivered = await request.get(`http://127.0.0.1:8090/media/groups/${saved.id}.png`);
   expect(delivered.ok()).toBe(true);
@@ -56,5 +56,43 @@ test('[UI-Y02] erro de upload mantém grupo único e permite reenviar a foto esc
   expect(media).toHaveLength(1);
   expect(media[0].width).toBe(media[0].height);
   expect(media[0].width).toBeGreaterThanOrEqual(128);
-  expect(media[0].width).toBeLessThanOrEqual(256);
+  expect(media[0].width).toBeLessThan(256);
+});
+
+test('[UI-Y03] logo escolhido no início aparece ao vivo e na escalação do próximo jogo', async ({ ui, request, control }) => {
+  const g = await generatedMatch(request, control);
+  seedGallery();
+  await ui.login(g.owner);
+  await ui.open('match', { matchId: g.match.id });
+  await ui.tap('Iniciar jogo');
+  await ui.fillByLabel('Nome do time 1', 'Preto');
+  await ui.fillByLabel('Nome do time 2', 'Branco');
+  await ui.tap('Trocar imagem de Preto');
+  await ui.selectGalleryThumbnail();
+  const path = `/api/matches/${g.match.id}/teams/images`;
+  await expect.poll(async () => (await body(await request.get(path, { headers: auth(g.owner) })))[0].imageUrl).toBeTruthy();
+  const identities = await body(await request.get(path, { headers: auth(g.owner) }));
+  const imageUrl = identities[0].imageUrl;
+  expect(imageUrl).toContain(`http://10.0.2.2:8090/media/teams/${g.id}/`);
+  await ui.seesImage();
+  await ui.tap('Iniciar jogo');
+  await ui.has('Jogo ao vivo');
+  await ui.seesImage();
+  expect((await live(request, g.match.id, g.owner)).scores[0]).toMatchObject({ name: 'Preto', imageUrl });
+  const media = await control.call('/media');
+  expect(media).toHaveLength(1);
+  expect(media[0].width).toBe(media[0].height);
+  expect(media[0].width).toBeGreaterThanOrEqual(128);
+  expect(media[0].width).toBeLessThan(256);
+
+  const next = await createMatch(request, control, g.id, g.owner);
+  const reused = await body(await request.get(`/api/matches/${next.id}/teams/images`, { headers: auth(g.owner) }));
+  expect(reused[0]).toMatchObject({ name: 'Preto', imageUrl });
+  for (const actor of g.actors) await going(request, next.id, actor);
+  const teams = await body(await request.post(`/api/matches/${next.id}/teams/generate`, { headers: auth(g.owner) }));
+  expect(teams.teams[0]).toMatchObject({ name: 'Preto', imageUrl });
+  await ui.open('match-teams', { matchId: next.id });
+  await ui.sees('Preto');
+  await ui.has('Símbolo de Preto');
+  await ui.seesImage();
 });
