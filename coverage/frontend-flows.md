@@ -19,7 +19,7 @@ O inventário executável está em `frontend-flows.json`. O contrato compara as 
 
 ## Critério de aprovação
 
-Oito partes independentes, 63/72 cenários aprovados, 30/30 rotas/guardas observadas e pelo menos um comando e uma assertion nativos em cada cenário. O gate recusa revisões divergentes, IDs ausentes/duplicados, falhas e testes ignorados. O JSON inclui revisões e contadores de evidência; o HTML inclui screenshots e, em falhas, a hierarquia Android e os logs nativos de crash e da aplicação.
+Oito partes independentes, 72/72 cenários aprovados, 30/30 rotas/guardas observadas e pelo menos um comando e uma assertion nativos em cada cenário. O gate recusa revisões divergentes, IDs ausentes/duplicados, falhas e testes ignorados. O JSON inclui revisões e contadores de evidência; o HTML inclui screenshots e, em falhas, a hierarquia Android e os logs nativos de crash e da aplicação.
 
 `join/[code]` e `dev-test-data` são rotas de redirecionamento/guarda: o teste verifica o destino e o bloqueio esperado. A ferramenta opcional permanece falsa no backend desta matriz, como na configuração normal; seus cinco endpoints habilitados já pertencem à suíte HTTP separada.
 

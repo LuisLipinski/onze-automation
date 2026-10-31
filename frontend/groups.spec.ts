@@ -85,12 +85,17 @@ test('[UI-G05] promoção começa sem funções e permissões são salvas indivi
   await ui.screen('group-admin-permissions', 'EDITAR ADMINISTRADOR');
   const labels = ['Adicionar membros', 'Remover membros', 'Promover membros', 'Editar grupo', 'Marcar e configurar jogos', 'Cancelar jogos', 'Gerenciar lista de jogadores', 'Gerenciar finanças', 'Gerenciar escalações', 'Controlar jogo ao vivo', 'Editar perfis e avaliações'];
   for (const label of labels) await ui.tap(label);
+  // The button's accessibility node can be exposed while only its rounded
+  // top edge is inside the ScrollView. Bring the footer fully into view.
+  await ui.scroll();
   await ui.tap('Salvar permissões');
   await ui.sees('Permissões atualizadas.', true);
   const all = await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(g.owner) }));
   expect(all.find((m: any) => m.userId === g.members[0].user.id).permissions).toHaveLength(labels.length);
   for (const label of labels.slice(1)) await ui.tap(label);
+  await ui.scroll();
   await ui.tap('Salvar permissões');
+  await ui.sees('Permissões atualizadas.', true);
   await expect.poll(async () => (await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(g.owner) }))).find((m: any) => m.userId === g.members[0].user.id).permissions).toEqual(['ADD_MEMBERS']);
   members = await body(await request.get(`/api/groups/${g.id}/members`, { headers: auth(g.owner) }));
   expect(members.find((m: any) => m.userId === g.members[0].user.id).permissions).toEqual(['ADD_MEMBERS']);
