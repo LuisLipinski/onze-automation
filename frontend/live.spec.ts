@@ -36,6 +36,11 @@ test('[UI-T03] edição manual muda posição, time e reserva sem duplicar jogad
   const field = g.assignments.find(a => a.assignedRole !== 'GOALKEEPER');
   await ui.login(g.owner);
   await ui.open('match-teams', { matchId: g.match.id });
+  await ui.has('Compartilhar escalação');
+  // Reproduce the missed-row state: the first team's player is above the
+  // viewport, so editing must recover by searching back through the list.
+  for (let scroll = 0; scroll < 6; scroll++) await ui.scroll();
+  await ui.absent(field.displayName);
   await ui.tapWithin(field.displayName, 'Editar');
   await ui.tap('Pivô');
   const teams = async () => body(await request.get(`/api/matches/${g.match.id}/teams`, { headers: auth(g.owner) }));

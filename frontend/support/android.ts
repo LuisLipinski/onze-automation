@@ -130,7 +130,7 @@ export class Android {
     const byDescription = `//*[${visible} and ${description}]`;
     return (await this.elements(byDescription))[0] ?? (await this.elements(this.selector(text, contains)))[0];
   }
-  async scroll(direction: 'up' | 'down' = 'down') {
+  async scroll(direction: 'up' | 'down' = 'down', distance = 0.7) {
     const before: string = await this.command(this.path('/source'));
     if (!before.includes(`package="${appPackage}"`)) throw new Error('Android left Onze before scrolling; inspect native crash log');
     this.beforeScroll = before;
@@ -143,8 +143,9 @@ export class Android {
     // Start in the scroll view's gutter. Inputs and switches can consume a
     // gesture that begins inside their own bounds, especially on long forms.
     const x = Math.round(left + Math.min(22, (right - left) * 0.04));
-    const top = Math.round(upper + (lower - upper) * 0.15);
-    const bottom = Math.round(upper + (lower - upper) * 0.85);
+    const inset = (1 - distance) / 2;
+    const top = Math.round(upper + (lower - upper) * inset);
+    const bottom = Math.round(lower - (lower - upper) * inset);
     // Use a bounded finger movement instead of a cached scroll-container
     // handle or scrollGesture's unreliable canScrollMore result on RN views.
     await this.touch([
@@ -152,6 +153,8 @@ export class Android {
       { type: 'pointerDown', button: 0 },
       { type: 'pause', duration: 100 },
       { type: 'pointerMove', duration: 500, x, y: direction === 'down' ? top : bottom },
+      // Stop the finger before release so a fling cannot skip a player row.
+      { type: 'pause', duration: 150 },
       { type: 'pointerUp', button: 0 },
     ]);
     const after: string = await this.command(this.path('/source'));
@@ -304,19 +307,23 @@ export class Android {
     await expect.poll(async () => this.execute('mobile: getCurrentPackage')).toMatch(/^(android|com\.android\.intentresolver|com\.google\.android\.)/);
   }
   async tapWithin(label: string, action: string) {
-    for (let attempt = 0; attempt < 16; attempt++) {
-      const labels = await this.elements(`//*[@text=${literal(label)}]`);
-      const actions = await this.elements(`//*[@content-desc=${literal(action)} and @clickable='true']`);
-      for (const name of labels) {
-        const nr = await this.command(this.path(`/element/${name[elementKey]}/rect`));
-        for (const candidate of actions) {
-          const ar = await this.command(this.path(`/element/${candidate[elementKey]}/rect`));
-          if (Math.abs(ar.y + ar.height / 2 - nr.y - nr.height / 2) < 60 && ar.x > nr.x + nr.width) {
-            await this.click(candidate); return;
+    // RN flattens these rows, and the pitch repeats each player's name.
+    // Keep matching the adjacent action, with overlapping scans both ways.
+    for (const direction of ['down', 'up', 'down'] as const) {
+      for (let attempt = 0; attempt < 16; attempt++) {
+        const labels = await this.elements(`${this.selector(label)}[@text=${literal(label)}]`);
+        const actions = await this.elements(`${this.selector(action)}[@content-desc=${literal(action)} and @clickable='true']`);
+        for (const name of labels) {
+          const nr = await this.command(this.path(`/element/${name[elementKey]}/rect`));
+          for (const candidate of actions) {
+            const ar = await this.command(this.path(`/element/${candidate[elementKey]}/rect`));
+            if (Math.abs(ar.y + ar.height / 2 - nr.y - nr.height / 2) < 60 && ar.x > nr.x + nr.width) {
+              await this.click(candidate); return;
+            }
           }
         }
+        if (!await this.scroll(direction, 0.35)) break;
       }
-      if (!await this.scroll('down')) break;
     }
     throw new Error(`${action} in Android row ${label} not found`);
   }
