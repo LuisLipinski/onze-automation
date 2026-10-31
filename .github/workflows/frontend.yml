@@ -248,6 +248,9 @@ jobs:
           arch: x86_64
           target: google_apis
           profile: pixel_7
+          # The profile's default userdata needs over 7 GB and can exceed
+          # remaining runner space after the API, SDK and APK are installed.
+          disk-size: 4096M
           disable-animations: true
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot
           script: |
