@@ -143,7 +143,11 @@ test('[UI-F05] cancelamento pago permite crédito em lote com confirmação', as
   await body(await request.delete(`/api/matches/${g.match.id}`, { headers: auth(g.owner) }), 204);
   await ui.login(g.owner);
   await ui.open('match', { matchId: g.match.id });
+  // Bring the pending settlement into view before selecting the batch. This
+  // also places the select-all control fully inside the scroll viewport.
+  await ui.sees('ACERTO PENDENTE');
   await ui.tap('Selecionar todos', true);
+  await ui.sees('☑ Selecionar todos');
   await ui.tap('Manter como crédito');
   await ui.has('Manter valores como crédito?');
   await ui.tap('Manter como crédito');
