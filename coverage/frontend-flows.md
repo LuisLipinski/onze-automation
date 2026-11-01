@@ -1,11 +1,11 @@
 # Matriz de interface Android
 
-O inventário executável está em `frontend-flows.json`. O contrato compara as 30 rotas do código mobile com o inventário e os 72 IDs com os testes. Cada resultado aprovado deve carregar evidência de comandos Appium e assertions nativos; visitas HTTP de preparação não contam como execução de UI.
+O inventário executável está em `frontend-flows.json`. O contrato compara as 30 rotas do código mobile com o inventário e os 74 IDs com os testes. Cada resultado aprovado deve carregar evidência de comandos Appium e assertions nativos; visitas HTTP de preparação não contam como execução de UI.
 
 | Área | Cenários | Verificações principais |
 |---|---|---|
 | Permissão de notificações | N01–N02 | Recusa no diálogo nativo, bloqueio prévio, navegação/presença e retorno ao primeiro plano sem repetir REQUEST_PERMISSIONS. |
-| Biometria Android | B01–B02 | Cadastro no sistema, autenticação, digital desconhecida, cancelamento, senha de outra conta, vínculo preservado e desativação. |
+| Biometria Android | B01–B04 | Cadastro no sistema, autenticação, digital desconhecida, cancelamento, senha de outra conta, vínculo preservado, desativação com revogação, JWT vencido em dois reinícios e nova tentativa após HTTP 503 sem digitar senha. |
 | Galeria e imagens | Y01–Y03 | Cancelar seletor, selecionar arquivo real, recortar, criar/editar grupo, falha de armazenamento e reenvio, dimensões e bytes recebidos pela API; logo no início, ao vivo e na escalação do próximo jogo. |
 | Acesso e navegação | A01–A07 | Credenciais inválidas, cadastro, recuperação real de código, código incorreto, persistência/logout, tabs, convite profundo com autenticação. |
 | Grupos e administração | G01–G10 | Três etapas de criação, validação, convite/renovação/compartilhamento nativo, menus por papel, todas as 11 permissões configuráveis, promoção sem funções, transferência, rebaixamento/remoção, exclusão/aviso e saída. |
@@ -19,7 +19,7 @@ O inventário executável está em `frontend-flows.json`. O contrato compara as 
 
 ## Critério de aprovação
 
-Oito partes independentes, 72/72 cenários aprovados, 30/30 rotas/guardas observadas e pelo menos um comando e uma assertion nativos em cada cenário. O gate recusa revisões divergentes, IDs ausentes/duplicados, falhas e testes ignorados. O JSON inclui revisões e contadores de evidência; o HTML inclui screenshots e, em falhas, a hierarquia Android e os logs nativos de crash e da aplicação.
+Oito partes independentes, 74/74 cenários aprovados, 30/30 rotas/guardas observadas e pelo menos um comando e uma assertion nativos em cada cenário. O gate recusa revisões divergentes, IDs ausentes/duplicados, falhas e testes ignorados. O JSON inclui revisões e contadores de evidência; o HTML inclui screenshots e, em falhas, a hierarquia Android e os logs nativos de crash e da aplicação.
 
 `join/[code]` e `dev-test-data` são rotas de redirecionamento/guarda: o teste verifica o destino e o bloqueio esperado. A ferramenta opcional permanece falsa no backend desta matriz, como na configuração normal; seus cinco endpoints habilitados já pertencem à suíte HTTP separada.
 
@@ -27,4 +27,4 @@ Oito partes independentes, 72/72 cenários aprovados, 30/30 rotas/guardas observ
 
 A contagem representa esta matriz funcional e não prova 100% de linhas, branches, pixels, controles ou combinações de dados. A lógica real da API e o banco são usados; e-mail/mídia/Expo ficam nas fronteiras isoladas já documentadas no backend. Por padrão, a permissão de notificações é concedida no emulador; N01 e N02 exercitam recusa e bloqueio nativos; o APK de receita v2 omite o projeto EAS e desativa FCM auto-init para isolar o registro remoto. A regressão protege contra o ciclo de `REQUEST_PERMISSIONS` encontrado no mobile `3f02636` e corrigido em `1cdf1f4`. O compartilhamento abre o seletor Android sem enviar a WhatsApp ou destinatários. Biometria em aparelhos físicos, captura por câmera (o app atual usa seleção da galeria), entrega real de notificações/provedores, aparelhos/versões adicionais, acessibilidade com leitor de tela, carga e funcionalidades futuras não estão declarados como validados por esta matriz.
 
-B01–B02 usam o serviço biométrico Android com uma digital cadastrada no emulador e amostras do sensor simulado. Y01–Y03 usam o seletor e o editor nativos e enviam o arquivo real; apenas a fronteira de armazenamento é local, servindo os bytes recebidos em vez de chamar o provedor externo.
+B01–B04 usam o serviço biométrico Android com uma digital cadastrada no emulador e amostras do sensor simulado. B03 avança apenas o relógio de autenticação para vencer o JWT; a digital renova o acesso em dois ciclos, e a lista de grupos é carregada pela API real em cada entrada. B04 recebe HTTP 503 controlado e confirma que uma nova tentativa ainda usa a digital. Y01–Y03 usam o seletor e o editor nativos e enviam o arquivo real; apenas a fronteira de armazenamento é local, servindo os bytes recebidos em vez de chamar o provedor externo.

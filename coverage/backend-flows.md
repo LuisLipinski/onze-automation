@@ -3,16 +3,17 @@
 Fonte: controllers de `LuisLipinski/onze-api`, branch `development`.
 O relatório de cada execução registra o SHA exato em `.runtime/backend-source.json`.
 
-O inventário possui **100 operações HTTP declaradas**: 95 de produto e cinco ferramentas opcionais.
-Seis operações são públicas; as outras 94 devem rejeitar requisições anônimas com 401.
+O inventário possui **103 operações HTTP declaradas**: 98 de produto e cinco ferramentas opcionais.
+Oito operações são públicas; as outras 95 devem rejeitar requisições anônimas com 401. A troca de sessão legada exige JWT válido, mesmo pertencendo ao controller de autenticação.
 O gate exige um cenário aprovado com resposta 2xx para cada operação, a rejeição anônima de todas as operações protegidas e nenhum teste ignorado/falho.
 Rotas específicas têm prioridade sobre parâmetros, evitando contar `/api/matches/live` como uma chamada a `/api/matches/{matchId}`.
 Alterar/adicionar/remover um controller sem atualizar o inventário bloqueia o CI.
-Dois cenários também conferem os mappings realmente registrados pelo Spring: 95 com ferramentas desligadas e 100 com a liberação explícita. Isso detecta inclusive uma operação nova que o parser do código-fonte ainda não reconheça.
+Dois cenários também conferem os mappings realmente registrados pelo Spring: 98 com ferramentas desligadas e 103 com a liberação explícita. Isso detecta inclusive uma operação nova que o parser do código-fonte ainda não reconheça.
 
 | Domínio | Fluxos e efeitos verificados | Cenários |
 |---|---|---|
 | Autenticação | Cadastro/login/me, duplicidade, validações, JWT inválido, bloqueio persistente, código efetivamente gerado, recuperação positiva/negativa, expiração, consumo, limite de tentativas, reenvio e falha do provedor sem enumeração | `auth*.spec.ts` |
+| Renovação de sessão | JWT vencido, rotação e replay, logout idempotente isolado por sessão, inatividade de 30 dias, limite absoluto de 90 dias, revogação após troca de senha, migração única de JWT legado válido e segredos inválidos | `refresh-session.spec.ts` |
 | Grupos | Criação/listagem/configuração, foto e falha de mídia, convite reutilizável/regeneração, entrada idempotente, saída/remoção, transferência, exclusão em cascata, preservação de outros grupos e avisos pessoais idempotentes | `groups`, `group-*` |
 | Permissões | As 11 permissões configuráveis: negar antes, permitir após delegação e negar imediatamente após revogação; ações exclusivas do Principal continuam exclusivas | `permissions-matrix`, `group-admins`, `group-lifecycle` |
 | Perfis | Posições primária/secundária/legadas, goleiro e voluntariado, independência por grupo, 17 habilidades, faixas/limpeza, edição delegada e leitura pessoal sem edição | `sports-profile`, `group-lifecycle` |
@@ -33,6 +34,6 @@ Dois cenários também conferem os mappings realmente registrados pelo Spring: 9
 
 Os 100% medem as operações HTTP do inventário, com os fluxos acima exercitados pela API real. Não representam cobertura de 100% das linhas/ramificações Java ou de todas as combinações possíveis de dados.
 
-Banco PostgreSQL 18, Flyway, segurança, serviços, transações, HTTP, serialização e processamento de jobs são reais. O harness só troca relógio, envio de e-mail e armazenamento de imagens; o adaptador Expo real chama um receptor HTTP local controlado. E-mails usam o código realmente gerado pelo serviço. Fixtures SQL só preparam expiração/reenvio/desbloqueio da autenticação e limpam as bases descartáveis.
+Banco PostgreSQL 18, Flyway, segurança, serviços, transações, HTTP, serialização e processamento de jobs são reais. O harness troca os relógios de negócio e sessão independentemente, captura envio de e-mail e armazenamento de imagens e permite uma resposta HTTP 503 na fronteira de renovação; o adaptador Expo real chama um receptor HTTP local controlado. E-mails usam o código realmente gerado pelo serviço. A fixture legada assina JWT sem `jti` com o encoder real, somente nesse processo descartável. Fixtures SQL preparam expiração/reenvio/desbloqueio da autenticação e limpam as bases descartáveis.
 
 Não se mede entrega real por Resend/Cloudinary/Expo/FCM nem recebimento no aparelho, interface Android, carga ou funcionalidades futuras do roadmap. Essas fronteiras não devem ser apresentadas como validadas.

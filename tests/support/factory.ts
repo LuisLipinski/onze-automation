@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { type APIRequestContext, type APIResponse } from '@playwright/test';
 import { expect, type Control } from './test';
 
-export type Actor = { accessToken: string; user: { id: string; email: string; displayName: string }; membershipId?: string };
+export type Actor = { accessToken: string; refreshToken?: string; user: { id: string; email: string; displayName: string }; membershipId?: string };
 export const password = 'OnzeTest123!';
 export const auth = (actor: Actor) => ({ Authorization: `Bearer ${actor.accessToken}` });
 export const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRz8AAAAASUVORK5CYII=', 'base64');
