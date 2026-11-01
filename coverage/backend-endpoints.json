@@ -320,6 +320,14 @@
     "optional": false
   },
   {
+    "id": "POST /api/auth/logout",
+    "method": "POST",
+    "path": "/api/auth/logout",
+    "controller": "AuthController.java",
+    "authentication": false,
+    "optional": false
+  },
+  {
     "id": "POST /api/auth/password-reset/confirm",
     "method": "POST",
     "path": "/api/auth/password-reset/confirm",
@@ -336,11 +344,27 @@
     "optional": false
   },
   {
+    "id": "POST /api/auth/refresh",
+    "method": "POST",
+    "path": "/api/auth/refresh",
+    "controller": "AuthController.java",
+    "authentication": false,
+    "optional": false
+  },
+  {
     "id": "POST /api/auth/register",
     "method": "POST",
     "path": "/api/auth/register",
     "controller": "AuthController.java",
     "authentication": false,
+    "optional": false
+  },
+  {
+    "id": "POST /api/auth/sessions/legacy",
+    "method": "POST",
+    "path": "/api/auth/sessions/legacy",
+    "controller": "AuthController.java",
+    "authentication": true,
     "optional": false
   },
   {

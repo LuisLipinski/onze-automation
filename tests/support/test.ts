@@ -18,6 +18,10 @@ export class Control {
   async now(): Promise<string> { return (await this.call('/clock')).now; }
   async at(instant: string): Promise<void> { await this.call('/clock', { instant }); }
   async advance(ms: number): Promise<void> { await this.at(new Date(Date.parse(await this.now()) + ms).toISOString()); }
+  async authNow(): Promise<string> { return (await this.call('/auth-clock')).now; }
+  async advanceAuth(ms: number): Promise<void> {
+    await this.call('/auth-clock', { instant: new Date(Date.parse(await this.authNow()) + ms).toISOString() });
+  }
   async process(): Promise<void> { await this.call('/process', {}); }
 }
 

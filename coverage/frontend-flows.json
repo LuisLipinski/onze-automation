@@ -369,6 +369,16 @@
       "file": "frontend/biometrics.spec.ts"
     },
     {
+      "id": "UI-B03",
+      "description": "digital renova acesso vencido em dois reinícios sem solicitar senha",
+      "file": "frontend/biometrics.spec.ts"
+    },
+    {
+      "id": "UI-B04",
+      "description": "falha temporária de renovação preserva digital e nova tentativa entra sem senha",
+      "file": "frontend/biometrics.spec.ts"
+    },
+    {
       "id": "UI-Y01",
       "description": "galeria cancela, seleciona e recorta foto antes de criar grupo e preserva imagem",
       "file": "frontend/media.spec.ts"

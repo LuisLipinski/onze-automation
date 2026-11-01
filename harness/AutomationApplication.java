@@ -2,6 +2,8 @@ package com.onze.automation;
 
 import com.onze.api.OnzeApiApplication;
 import com.onze.api.auth.PasswordResetEmailSender;
+import com.onze.api.auth.SessionClock;
+import com.onze.api.user.UserRepository;
 import com.onze.api.group.GroupPhotoStorage;
 import com.onze.api.group.GroupDeletionNotificationProcessor;
 import com.onze.api.match.MatchTeamImageStorage;
@@ -21,11 +23,15 @@ import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.*;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.oauth2.jwt.JwtClaimsSet;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import tools.jackson.databind.json.JsonMapper;
 
 /** Test process only. This class is never packaged in onze-api or deployed. */
 public class AutomationApplication {
     static final AtomicReference<Instant> NOW = new AtomicReference<>(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
+    static final AtomicReference<Instant> SESSION_NOW = new AtomicReference<>(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS));
     static final List<Map<String, String>> EMAILS = new CopyOnWriteArrayList<>();
     static final List<Object> PUSHES = new CopyOnWriteArrayList<>();
     static final Map<String, byte[]> MEDIA = new ConcurrentHashMap<>();
@@ -33,6 +39,7 @@ public class AutomationApplication {
     static final AtomicReference<Map<String, Object>> EXPO_DEFAULT_REPLY = new AtomicReference<>();
     static volatile boolean failMedia;
     static volatile boolean failEmail;
+    static volatile boolean failRefresh;
 
     public static void main(String[] args) throws Exception {
         String jdbc = System.getenv("DATABASE_URL");
@@ -84,12 +91,28 @@ public class AutomationApplication {
                         List<String> tables = db.queryForList("select tablename from pg_tables where schemaname='public' and tablename <> 'flyway_schema_history' order by tablename", String.class);
                         if (!tables.isEmpty()) truncateWithRetry(db, "truncate table " + tables.stream().map(n -> "\"" + n.replace("\"", "\"\"") + "\"").collect(java.util.stream.Collectors.joining(",")) + " restart identity cascade");
                         NOW.set(Instant.now().truncatedTo(java.time.temporal.ChronoUnit.SECONDS)); EMAILS.clear(); PUSHES.clear(); MEDIA.clear(); EXPO_REPLIES.clear(); EXPO_DEFAULT_REPLY.set(null);
-                        failMedia = false; failEmail = false;
+                        SESSION_NOW.set(NOW.get());
+                        failMedia = false; failEmail = false; failRefresh = false;
                         result = Map.of("now", NOW.get().toString());
                     }
                     case "/clock" -> {
                         if (body.containsKey("instant")) NOW.set(Instant.parse(body.get("instant").toString()));
                         result = Map.of("now", NOW.get().toString());
+                    }
+                    case "/auth-clock" -> {
+                        if (body.containsKey("instant")) SESSION_NOW.set(Instant.parse(body.get("instant").toString()));
+                        result = Map.of("now", SESSION_NOW.get().toString());
+                    }
+                    case "/session-stats" -> result = db.queryForMap("select count(*)::int as total, "
+                            + "count(*) filter (where consumed_at is not null)::int as consumed, "
+                            + "count(*) filter (where revoked_at is not null)::int as revoked from auth_refresh_tokens");
+                    case "/legacy-access" -> {
+                        var user = app.getBean(UserRepository.class).findById(UUID.fromString(body.get("userId").toString())).orElseThrow();
+                        var claims = JwtClaimsSet.builder().issuer(app.getEnvironment().getRequiredProperty("security.jwt.issuer"))
+                                .subject(user.getId().toString()).issuedAt(SESSION_NOW.get().minusSeconds(1))
+                                .expiresAt(SESSION_NOW.get().plus(Duration.ofHours(2)))
+                                .claim("email", user.getEmail()).claim("name", user.getDisplayName()).build();
+                        result = Map.of("accessToken", app.getBean(JwtEncoder.class).encode(JwtEncoderParameters.from(claims)).getTokenValue());
                     }
                     case "/emails" -> result = List.copyOf(EMAILS);
                     case "/pushes" -> result = List.copyOf(PUSHES);
@@ -105,6 +128,7 @@ public class AutomationApplication {
                     case "/boundaries" -> {
                         failMedia = Boolean.TRUE.equals(body.get("failMedia"));
                         failEmail = Boolean.TRUE.equals(body.get("failEmail"));
+                        failRefresh = Boolean.TRUE.equals(body.get("failRefresh"));
                         result = Map.of("configured", true);
                     }
                     case "/expire-reset-code" -> {
@@ -183,6 +207,18 @@ public class AutomationApplication {
 
     @Configuration(proxyBeanMethods = false)
     static class Boundaries {
+        @Bean @Primary SessionClock automationSessionClock() { return SESSION_NOW::get; }
+        @Bean jakarta.servlet.Filter refreshFailureBoundary() {
+            return (request, response, chain) -> {
+                if (failRefresh && request instanceof jakarta.servlet.http.HttpServletRequest http
+                        && http.getRequestURI().equals("/api/auth/refresh")) {
+                    var reply = (jakarta.servlet.http.HttpServletResponse) response;
+                    reply.setStatus(503);
+                    reply.setContentType("application/json;charset=UTF-8");
+                    reply.getWriter().write("{\"code\":\"TEMPORARY_SESSION_FAILURE\",\"message\":\"Não foi possível renovar seu acesso agora. Tente novamente.\"}");
+                } else chain.doFilter(request, response);
+            };
+        }
         @Bean @Primary Clock automationClock() {
             return new Clock() {
                 public ZoneId getZone() { return ZoneOffset.UTC; }
